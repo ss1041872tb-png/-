@@ -1,13 +1,12 @@
 import * as THREE from '../vendor/three.module.js';
-import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=2.1.0';
-import { plans } from './campaign.js?v=2.1.0';
+import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=3.0.0';
 
 export function createWorld(container, shops) {
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b8d5d2');scene.fog=new THREE.Fog('#b8d5d2',160,290);
  const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;
- renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','3D 彎巷冒險；WASD 移動，E 在店前闖關，拖曳旋轉視角。');container.append(renderer.domElement);
+ renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','3D 彎巷冒險；WASD 移動，走到門口進店尋寶，拖曳旋轉視角。');container.append(renderer.domElement);
  const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,350);
  scene.add(new THREE.HemisphereLight('#fff0d2','#73948b',2));
  const sun=new THREE.DirectionalLight('#ffedc3',2.6);sun.position.set(-45,80,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-80,right:80,top:75,bottom:-75,far:200});sun.shadow.normalBias=.06;scene.add(sun);
@@ -58,7 +57,7 @@ export function createWorld(container, shops) {
   const signMaterial=new THREE.MeshBasicMaterial({map:label(shop.name,shop.id)}),faces=[];
   for(const side of [-1,1]){const face=new THREE.Mesh(new THREE.PlaneGeometry(9.4,2.2),signMaterial);face.position.set(0,h+2.05,side*.2);face.rotation.y=side===1?0:Math.PI;face.userData.shop=shop;g.add(face);faces.push(face);signMeshes.push(face);}
   signMeshes.push(frame);
-  const checkpoint=new THREE.Mesh(new THREE.PlaneGeometry(2.8,.8),new THREE.MeshBasicMaterial({map:label(`${shop.id} 闖關`,shop.id,'#9c6935'),side:THREE.DoubleSide}));checkpoint.position.set(2.1,1.9,10.5);checkpoint.userData.shop=shop;g.add(checkpoint);box(.12,1.8,.12,'#77684c',2.1,.9,10.5,g);
+  const checkpoint=new THREE.Mesh(new THREE.PlaneGeometry(2.8,.8),new THREE.MeshBasicMaterial({map:label(`${shop.id} 入店尋寶`,shop.id,'#9c6935'),side:THREE.DoubleSide}));checkpoint.position.set(2.1,1.9,10.5);checkpoint.userData.shop=shop;g.add(checkpoint);box(.12,1.8,.12,'#77684c',2.1,.9,10.5,g);
   buildings.push({g,x,z,h,lot,shop,frame,frameMat,signMaterial,faces,approach:localPoint(lot,0,10.5),entry:localPoint(lot,0,4.8),district:lot.district});
  });
  // Small residential blocks fill the pockets between the zigzag alleys.
@@ -101,8 +100,8 @@ export function createWorld(container, shops) {
  }
  const vehicles=[];for(let i=0;i<7;i++){const type=i<3?'car':'scooter',g=vehicle(type,['#d67d56','#dfbd63','#679d9f','#c2aa72','#79a489','#ad7b88','#758eab'][i]),t=35+i*roadLength/7,p=roadAt(t,-1.1);g.position.set(p.x,.05,p.z);g.rotation.y=p.yaw;vehicles.push({g,t,type,speed:type==='car'?3:3.6});}
  for(const i of [1,4,8]){const b=buildings[i],p=localPoint(b.lot,-6.5,-1),g=vehicle('scooter','#8aab9a');g.position.set(p.x,0,p.z);g.rotation.y=b.lot.yaw+.4;obstacle(p.x,p.z,1.5,2,b.lot.yaw);}
- let questCounts=Array(10).fill(0);
- function setQuestProgress(counts){questCounts=counts;gates.forEach((gate,i)=>{if(gate.count===counts[i])return;gate.count=counts[i];gate.barrier.visible=counts[i]<3;const bridgeIndex=plans[i].indexOf('bridge');gate.planks.forEach(m=>m.visible=counts[i]===3||bridgeIndex>=0&&counts[i]>bridgeIndex);gate.flags.forEach((m,n)=>m.material=mat(n<counts[i]?'#83b571':'#edc979'));});}
+ let questCounts=Array(10).fill(3);
+ function setQuestProgress(counts){questCounts=counts;gates.forEach((gate,i)=>{if(gate.count===counts[i])return;gate.count=counts[i];gate.barrier.visible=counts[i]<3;gate.planks.forEach(m=>m.visible=true);gate.flags.forEach((m,n)=>m.material=mat(n<counts[i]?'#83b571':'#edc979'));});}
  function staticClear(x,z,r=.43){if(Math.abs(x)>bounds.x-1||Math.abs(z)>bounds.z-1)return false;if(obstacles.some(o=>{const p=toLocal(o,x,z);return Math.abs(p.x)<o.w+r&&Math.abs(p.z)<o.d+r;}))return false;for(let i=0;i<lots.length;i++){const p=toLocal(lots[i],x,z);if(Math.abs(p.x)<5&&p.z>5.45-r&&p.z<7.15+r&&(questCounts[i]<3||Math.abs(p.x)>1.75-r))return false;}return true;}
  function canStand(x,z,r=.43){return staticClear(x,z,r)&&!vehicles.some(v=>Math.hypot(v.g.position.x-x,v.g.position.z-z)<(v.type==='car'?1.7:1)+r);}
  function walk(g,moving,t,phase=0){const swing=moving?Math.sin(t*9+phase)*.5:0;for(const l of g.userData.limbs){l.leg.rotation.x=swing*l.side;l.arm.rotation.x=-swing*l.side*.75;}g.userData.torso.position.y=1.37+(moving?Math.abs(Math.sin(t*9+phase))*.035:0);}
