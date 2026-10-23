@@ -1,9 +1,9 @@
+import { photoFor } from './photos.js?v=2.0.0';
 const foodAssets = ['noodles', 'cold-noodles', 'breakfast', 'naan', 'rice', 'dumplings', 'sushi', 'thai', 'soup', 'skewers'];
-const storageKey = 'zhonghe-food-passport-v1';
-export function createUI(shops, onPause, onPreferences = () => {}) {
+export function createUI(shops, onPause, onPreferences = () => {}, services = {}) {
   const $ = id => document.getElementById(id);
   const drawer = $('drawer'), journal = $('journal'), help = $('help');
-  const panels = [drawer, journal, help];
+  const panels = [drawer, journal, help, $('quest')];
   const preferences = { powerSaving: false, reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches };
   const preferencesKey = 'zhonghe-food-preferences-v1';
   try {
@@ -13,9 +13,9 @@ export function createUI(shops, onPause, onPreferences = () => {}) {
   } catch { /* Unavailable storage does not prevent changing settings for this session. */ }
   $('power-saving').checked = preferences.powerSaving;
   $('reduced-motion').checked = preferences.reducedMotion;
-  const background = [...document.querySelectorAll('#world, .topbar, .intro, .bottom-bar, #mobile, #navigator')];
-  let visited = new Set(), returnFocus = null, toastTimer;
-  try { const saved = JSON.parse(localStorage.getItem(storageKey)); if (Array.isArray(saved)) visited = new Set(saved.filter(id => shops.some(s => s.id === id))); } catch { $('storage-notice').hidden = false; }
+  const background = [...document.querySelectorAll('#world, .topbar, .intro, .bottom-bar, #mobile, #navigator, #interact')];
+  const visited = services.campaign.visited;
+  let returnFocus = null, toastTimer;
   function toast(text) {
     $('toast').textContent = text; $('toast').classList.add('visible'); clearTimeout(toastTimer);
     toastTimer = setTimeout(() => $('toast').classList.remove('visible'), 3600);
@@ -25,7 +25,7 @@ export function createUI(shops, onPause, onPreferences = () => {}) {
     const icon = document.createElement('span'); icon.textContent = shop.emoji;
     const name = document.createElement('div'); name.append(document.createTextNode(shop.name));
     const state = document.createElement('small'); name.append(state); button.append(icon, name);
-    button.addEventListener('click', () => showShop(shop)); $('badges').append(button);
+    button.addEventListener('click', () => services.requestShop(shop)); $('badges').append(button);
     return { button, state, shop };
   });
   function updateProgress() {
@@ -33,10 +33,12 @@ export function createUI(shops, onPause, onPreferences = () => {}) {
     $('journal-toggle').setAttribute('aria-label', `美食護照，已探索 ${visited.size} / 10 家`);
     for (const { button, state, shop } of buttons) {
       const collected = visited.has(shop.id); button.classList.toggle('collected', collected);
-      state.textContent = collected ? '✓ 已收藏' : '點選探索';
+      state.textContent = collected ? '✓ 已收藏' : `🔒 ${services.campaign.count(shop.id)} / 3 關・前往探險`;
     }
+    $('storage-notice').hidden = services.campaign.storageAvailable;
+    $('task-count').textContent = services.campaign.stages.reduce((a,b)=>a+b,0);
     $('completion').hidden = visited.size !== shops.length;
-    $('reset-progress').disabled = visited.size === 0;
+    $('reset-progress').disabled = visited.size === 0 && services.campaign.stages.every(n=>n===0);
     $('achievement').textContent = visited.size === 10 ? '🏆 十站達成！你是中和美食旅人。' : `已收藏 ${visited.size} / 10 枚，下一站也值得期待。`;
   }
   function close(restore = true) {
@@ -46,6 +48,7 @@ export function createUI(shops, onPause, onPreferences = () => {}) {
     $('journal-toggle').setAttribute('aria-expanded', 'false');
     background.forEach(element => { element.inert = false; });
     onPause(false);
+    document.dispatchEvent(new Event('explorer:panelclose'));
     if (restore && wasOpen && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
   }
   function openPanel(panel, focusTarget) {
@@ -57,25 +60,27 @@ export function createUI(shops, onPause, onPreferences = () => {}) {
     $('journal-toggle').setAttribute('aria-expanded', String(panel === journal));
     focusTarget.focus({ preventScroll: true });
   }
-  function showShop(shop) {
+  function showShop(shop, collect = true) {
+    if (collect && !services.campaign.unlocked(shop.id)) { services.requestShop(shop); return; }
     document.body.classList.add('exploring');
-    const isNew = !visited.has(shop.id); visited.add(shop.id);
-    persistProgress();
+    const isNew = collect && !visited.has(shop.id);
+    if (collect) services.campaign.collect(shop.id);
+    $('stamp').textContent = collect ? '✓ 已收集徽章' : '資料預覽・完成闖關後集章';
     $('shop-name').textContent = shop.name; $('category').textContent = shop.category;
     $('description').textContent = shop.description; $('address').textContent = shop.address;
     $('shop-number').textContent = `TASTY STOP ${String(shop.id).padStart(2, '0')} / 10`;
-    $('food-image').src = `assets/${foodAssets[shop.id - 1]}.svg`;
-    $('food-image').alt = `${shop.tags[0]}主題美食插畫，非店家實拍`;
+    const photo = photoFor(shop);
+    $('food-image').onerror = () => { $('food-image').onerror = null; $('food-image').src = `assets/${foodAssets[shop.id - 1]}.svg`; $('image-note').textContent = '實拍無法載入，顯示示意插畫'; };
+    $('food-image').src = photo.verified ? photo.src : `assets/${foodAssets[shop.id - 1]}.svg`;
+    $('food-image').alt = photo.verified ? `${shop.name}餐點實拍，${photo.credit}` : `${shop.tags[0]}示意插畫，尚未取得經確認的店家實拍`;
+    $('image-note').textContent = photo.verified ? `店家實拍・${photo.credit}` : '示意插畫・店家實拍尚待取得';
+    $('photo-source').href = photo.verified ? photo.source : photo.searchURL;
+    $('photo-source').textContent = photo.verified ? '查看實拍來源與授權 ↗' : '搜尋這家店的餐點實拍 ↗';
+    services.sound.play(isNew ? 'win' : 'click');
     $('tags').replaceChildren(...shop.tags.map(tag => { const span = document.createElement('span'); span.className = 'tag'; span.textContent = tag; return span; }));
     $('navigation').href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.name + ' ' + shop.address)}`;
     updateProgress(); openPanel(drawer, $('close'));
     if (isNew) toast(visited.size === 10 ? '🏆 十站達成！獲得「中和美食旅人」成就！' : `✦ 已收藏 ${shop.name} · ${visited.size} / 10`);
-  }
-  function persistProgress() {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify([...visited]));
-      $('storage-notice').hidden = true;
-    } catch { $('storage-notice').hidden = false; }
   }
   $('close').addEventListener('click', () => close());
   $('journal-close').addEventListener('click', () => close());
@@ -92,7 +97,7 @@ export function createUI(shops, onPause, onPreferences = () => {}) {
     $('reset-confirm').hidden = true; $('reset-progress').focus();
   });
   $('reset-confirm-button').addEventListener('click', () => {
-    visited.clear(); persistProgress(); updateProgress();
+    services.campaign.reset(); updateProgress();
     $('reset-confirm').hidden = true; $('journal-close').focus();
     toast('美食護照已重新開始，下一個街角見！');
   });
@@ -113,6 +118,16 @@ export function createUI(shops, onPause, onPreferences = () => {}) {
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   });
+  function updateSound() {
+    $('sound-toggle').textContent = services.sound.enabled ? '🔊' : '🔇';
+    $('sound-toggle').setAttribute('aria-pressed', String(services.sound.enabled));
+    $('sound-toggle').setAttribute('aria-label', services.sound.enabled ? '關閉音效' : '開啟音效');
+    $('sound-enabled').checked = services.sound.enabled; $('sound-volume').value = services.sound.volume;
+  }
+  $('sound-toggle').addEventListener('click',()=>{services.sound.setEnabled(!services.sound.enabled);updateSound();services.sound.play('click');});
+  $('sound-enabled').addEventListener('change',()=>{services.sound.setEnabled($('sound-enabled').checked);updateSound();});
+  $('sound-volume').addEventListener('input',()=>services.sound.setVolume($('sound-volume').value));
+  services.campaign.subscribe(updateProgress); updateSound();
   updateProgress();
-  return { visited, preferences, showShop, close, toast, get paused() { return panels.some(panel => !panel.hidden); } };
+  return { visited, preferences, showShop, close, toast, openPanel, get paused() { return panels.some(panel => !panel.hidden); } };
 }
