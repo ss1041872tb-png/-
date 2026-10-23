@@ -1,7 +1,7 @@
-import { photoFor } from './photos.js?v=2.0.0';
-const foodAssets = ['noodles', 'cold-noodles', 'breakfast', 'naan', 'rice', 'dumplings', 'sushi', 'thai', 'soup', 'skewers'];
+import { createFoodView } from './food-view.js?v=2.1.0';
 export function createUI(shops, onPause, onPreferences = () => {}, services = {}) {
   const $ = id => document.getElementById(id);
+  const foodView=createFoodView();
   const drawer = $('drawer'), journal = $('journal'), help = $('help');
   const panels = [drawer, journal, help, $('quest')];
   const preferences = { powerSaving: false, reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches };
@@ -42,6 +42,7 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     $('achievement').textContent = visited.size === 10 ? '🏆 十站達成！你是中和美食旅人。' : `已收藏 ${visited.size} / 10 枚，下一站也值得期待。`;
   }
   function close(restore = true) {
+    foodView.hide();
     const wasOpen = panels.some(panel => !panel.hidden);
     panels.forEach(panel => { panel.hidden = true; });
     $('reset-confirm').hidden = true; document.body.classList.remove('panel-open');
@@ -52,6 +53,7 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     if (restore && wasOpen && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
   }
   function openPanel(panel, focusTarget) {
+    foodView.hide();
     if (panels.every(p => p.hidden)) returnFocus = document.activeElement;
     panels.forEach(p => { p.hidden = true; }); panel.hidden = false;
     document.body.classList.add('panel-open');
@@ -69,17 +71,11 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     $('shop-name').textContent = shop.name; $('category').textContent = shop.category;
     $('description').textContent = shop.description; $('address').textContent = shop.address;
     $('shop-number').textContent = `TASTY STOP ${String(shop.id).padStart(2, '0')} / 10`;
-    const photo = photoFor(shop);
-    $('food-image').onerror = () => { $('food-image').onerror = null; $('food-image').src = `assets/${foodAssets[shop.id - 1]}.svg`; $('image-note').textContent = '實拍無法載入，顯示示意插畫'; };
-    $('food-image').src = photo.verified ? photo.src : `assets/${foodAssets[shop.id - 1]}.svg`;
-    $('food-image').alt = photo.verified ? `${shop.name}餐點實拍，${photo.credit}` : `${shop.tags[0]}示意插畫，尚未取得經確認的店家實拍`;
-    $('image-note').textContent = photo.verified ? `店家實拍・${photo.credit}` : '示意插畫・店家實拍尚待取得';
-    $('photo-source').href = photo.verified ? photo.source : photo.searchURL;
-    $('photo-source').textContent = photo.verified ? '查看實拍來源與授權 ↗' : '搜尋這家店的餐點實拍 ↗';
+    $('image-note').textContent='原創 3D 餐點示意・非店家實拍';
     services.sound.play(isNew ? 'win' : 'click');
     $('tags').replaceChildren(...shop.tags.map(tag => { const span = document.createElement('span'); span.className = 'tag'; span.textContent = tag; return span; }));
     $('navigation').href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.name + ' ' + shop.address)}`;
-    updateProgress(); openPanel(drawer, $('close'));
+    updateProgress(); openPanel(drawer, $('close')); foodView.show(shop,preferences);
     if (isNew) toast(visited.size === 10 ? '🏆 十站達成！獲得「中和美食旅人」成就！' : `✦ 已收藏 ${shop.name} · ${visited.size} / 10`);
   }
   $('close').addEventListener('click', () => close());
