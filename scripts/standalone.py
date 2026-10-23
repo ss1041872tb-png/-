@@ -13,13 +13,13 @@ assert hashlib.sha256((root / 'vendor/three.module.js').read_bytes()).hexdigest(
 foods = {p.stem: 'data:image/svg+xml;base64,' + base64.b64encode(p.read_bytes()).decode('ascii') for p in sorted((root / 'assets').glob('*.svg'))}
 modules = []
 for name, path, imports in [
-    ('three', 'vendor/three.module.js', {}),
-    ('data', 'src/data.js', {}),
-    ('ui', 'src/ui.js', {}),
-    ('controls', 'src/controls.js', {}),
-    ('navigation', 'src/navigation.js', {}),
-    ('world', 'src/world.js', {'../vendor/three.module.js': 'three'}),
-    ('main', 'src/main.js', {'./data.js':'data','./ui.js':'ui','./controls.js':'controls','./navigation.js':'navigation','./world.js':'world'}),
+    ('three','vendor/three.module.js',{}),('data','src/data.js',{}),('layout','src/layout.js',{}),
+    ('campaign','src/campaign.js',{}),('sound','src/sound.js',{}),('photos','src/photos.js',{}),
+    ('ui','src/ui.js',{'./photos.js':'photos'}),('controls','src/controls.js',{}),
+    ('challenges','src/challenges.js',{'./campaign.js':'campaign'}),
+    ('navigation','src/navigation.js',{'./layout.js':'layout'}),
+    ('world','src/world.js',{'../vendor/three.module.js':'three','./layout.js':'layout','./campaign.js':'campaign'}),
+    ('main','src/main.js',{'./data.js':'data','./ui.js':'ui','./controls.js':'controls','./navigation.js':'navigation','./campaign.js':'campaign','./sound.js':'sound','./challenges.js':'challenges','./world.js':'world'}),
 ]:
     source = (root / path).read_text()
     if name == 'ui':
@@ -34,7 +34,7 @@ bootstrap = '''
   for (const module of modules) {
     let source = new TextDecoder().decode(Uint8Array.from(atob(module.source), c => c.charCodeAt(0)));
     for (const [specifier, dependency] of Object.entries(module.imports)) {
-      source = source.replaceAll("'" + specifier + "'", JSON.stringify(urls[dependency]));
+      source = source.replaceAll("'" + specifier + "?v=2.0.0'", JSON.stringify(urls[dependency])).replaceAll("'" + specifier + "'", JSON.stringify(urls[dependency]));
     }
     urls[module.name] = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
   }
@@ -47,8 +47,8 @@ bootstrap = '''
 });
 '''.replace('MODULES', json.dumps(modules, separators=(',', ':')))
 html = (root / 'index.html').read_text()
-html = html.replace('<link rel="stylesheet" href="styles.css">', '<style>\n' + (root / 'styles.css').read_text() + '</style>')
-html = html.replace('<script type="module" src="src/main.js"></script>', '<script>\n' + bootstrap + '</script>')
+html = html.replace('<link rel="stylesheet" href="styles.css?v=2.0.0">', '<style>\n' + (root / 'styles.css').read_text() + '</style>')
+html = html.replace('<script type="module" src="src/main.js?v=2.0.0"></script>', '<script>\n' + bootstrap + '</script>')
 license_text = (root / 'vendor/THREE-LICENSE.txt').read_text()
 html = '<!-- Single-file local preview. Three.js 0.160.1: ' + license_text.replace('--', '—') + '-->\n' + html
 output = root / 'dist/zhonghe-food-explorer-preview.html'

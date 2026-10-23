@@ -954,3 +954,48 @@ body.panel-open .navigator { visibility: hidden; }
   .view-actions { gap: 5px; }
 }
 @media (max-width: 700px) { .utility-panel { padding: 20px; } }
+
+/* Alley adventure: tactile challenge boards, without external art or heavyweight effects. */
+.intro #start-adventure { pointer-events:auto; display:block; width:auto; margin-top:18px; padding:12px 18px; box-shadow:0 5px 0 #183b3922; }
+.map-stage { aspect-ratio:280/240; }
+.quest-panel { width:580px; }
+.quest-panel .section-heading h2 { font-size:21px; line-height:1.5; }
+.section-heading .icon-button { flex-shrink:0; }
+.quest-progress { display:flex; gap:6px; flex-wrap:wrap; margin:18px 0; }
+.quest-step { padding:7px 9px; border:1px solid #d3c8aa; border-radius:8px; background:#eee8d5; color:#8b7858; font-size:10px; }
+.quest-step.done { background:#d9e7cc; color:#426543; border-color:#99b385; }
+#quest-game-title { margin:14px 0 8px; font-size:19px; }
+.game-instructions { font-size:12px; line-height:1.9; color:var(--muted); }
+.quest-feedback { font-size:12px; line-height:1.8; min-height:32px; color:#99603a; }
+#quest-game button { min-height:44px; border:1px solid #b7b69c; border-radius:10px; background:#fff9e7; padding:10px; font-size:13px; color:var(--ink); }
+#quest-game button:disabled { opacity:.55; }
+#quest-game button.primary-button { width:100%; background:var(--green); color:var(--cream); margin-top:16px; }
+.rps-choices,.block-inventory,.bridge-slots { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:18px 0; }
+#quest-game .rps-choices button { min-height:95px; font-size:22px; background:#e2ecdc; }
+.bridge-slots { padding:15px; background:#9ec8ca; border-radius:12px; }
+#quest-game .block-0 { background:#edc77d; } #quest-game .block-1 { background:#b4d3b3; } #quest-game .block-2 { background:#d5a8b8; }
+#quest-game .placed { background:#c5dbb1; opacity:1; }
+.sliding-board,.tic-board { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; width:min(100%,300px); margin:20px auto; }
+#quest-game .sliding-board button,#quest-game .tic-board button { aspect-ratio:1; font-size:28px; background:#e0c78e; }
+#quest-game .sliding-board .empty { background:#e4e6d7; font-size:12px; color:#7c8c78; }
+#quest-game .tic-board button { background:#e5eddd; }
+.memory-board { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin:20px 0; }
+#quest-game .memory-board button { aspect-ratio:1; min-height:65px; font-size:29px; background:#375b4e; color:#f6d995; }
+#quest-game .memory-board .flipped { background:#f2dfb8; opacity:1; }
+.recipe-choices { display:grid; grid-template-columns:repeat(2,1fr); gap:9px; margin:18px 0; }
+.interact-button { position:absolute; bottom:100px; left:50%; translate:-50% 0; z-index:10; border:1px solid #ffe8b2; border-radius:12px; padding:14px 20px; background:#284e3ff5; color:#fff0be; font-size:12px; box-shadow:0 6px 24px #183b3930; }
+body.panel-open .interact-button { display:none; }
+.photo-source { display:block; color:#8b6c41; font-size:10px; margin:0 0 18px; text-underline-offset:3px; }
+#sound-volume { width:120px; }
+@media(max-width:700px){
+ .quest-panel { padding:18px; }
+ .quest-panel .section-heading h2 { font-size:17px; }
+ .quest-step { font-size:9px; padding:6px; }
+ .bridge-slots { padding:9px; gap:6px; }
+ #quest-game .bridge-slots button { font-size:10px; padding:8px 4px; }
+ #quest-game .rps-choices button { font-size:17px; min-height:75px; }
+ .interact-button { bottom:140px; right:18px; left:auto; translate:none; max-width:170px; padding:12px; font-size:10px; }
+ .bottom-bar .explore-hint { flex:1; min-width:0; max-width:none; padding:10px 8px; font-size:8px; }
+ .view-actions { flex-shrink:0; gap:5px; }
+ .view-actions .view-button { padding:8px; min-width:34px; min-height:36px; }
+}

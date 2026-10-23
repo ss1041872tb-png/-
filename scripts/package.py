@@ -5,9 +5,9 @@ from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 import json
 
 root = Path(__file__).resolve().parents[1]
-files = [root / name for name in ['index.html', 'styles.css', 'README.md', 'CREDITS.md']]
-for directory, pattern in [('src', '*.js'), ('assets', '*.svg'), ('vendor', '*')]:
-    files.extend(p for p in (root / directory).glob(pattern) if p.is_file())
+files = [root / name for name in ['index.html', 'styles.css', 'README.md', 'CREDITS.md', '.nojekyll']]
+for directory, pattern in [('src', '*.js'), ('assets', '*'), ('vendor', '*'), ('docs', '*.md')]:
+    files.extend(p for p in (root / directory).rglob(pattern) if p.is_file())
 files.sort()
 provenance = json.loads((root / 'vendor/provenance.json').read_text())
 assert sha256((root / 'vendor/three.module.js').read_bytes()).hexdigest() == provenance['module_sha256'], 'Three.js integrity mismatch'

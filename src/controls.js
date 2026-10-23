@@ -1,10 +1,10 @@
 export function createControls(world, callbacks) {
   const canvas = world.renderer.domElement, keys = new Set();
-  const view = { angle: .35, pitch: .82, distance: 88 };
+  const view = { angle: .48, pitch: .95, distance: 136, follow: false };
   let pointer = null, hovered = null, paused = false;
   const pointers = new Map();
   let gesture = false, lastPinch = 0;
-  const clampZoom = value => Math.max(32, Math.min(110, value));
+  const clampZoom = value => Math.max(32, Math.min(150, value));
   function pinchDistance() {
     const [a, b] = [...pointers.values()];
     return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
@@ -17,11 +17,12 @@ export function createControls(world, callbacks) {
     document.querySelectorAll('#mobile .held').forEach(b => b.classList.remove('held'));
     hovered = null; hoverLabel.hidden = true; canvas.style.cursor = 'grab';
   }
+  function focusPlayer(){if(!view.follow){view.follow=true;view.distance=48;world.updateCamera(view,true);}document.body.classList.add('exploring');}
   const movementKeys = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright']);
   window.addEventListener('keydown', e => {
     if (!movementKeys.has(e.key.toLowerCase()) || paused || e.ctrlKey || e.metaKey || e.altKey) return;
     if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-    document.body.classList.add('exploring');
+    focusPlayer();
     e.preventDefault(); keys.add(e.key.toLowerCase());
   });
   window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
@@ -89,14 +90,16 @@ export function createControls(world, callbacks) {
   document.querySelectorAll('#mobile button').forEach(button => {
     const release = () => { keys.delete(button.dataset.key); button.classList.remove('held'); };
     button.addEventListener('pointerdown', e => {
-      if (paused) return; document.body.classList.add('exploring'); e.preventDefault(); button.setPointerCapture(e.pointerId);
+      if (paused) return; focusPlayer(); e.preventDefault(); button.setPointerCapture(e.pointerId);
       keys.add(button.dataset.key); button.classList.add('held');
     });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, release);
   });
   document.getElementById('reset-view').addEventListener('click', () => {
-    clear(); document.body.classList.remove('exploring'); Object.assign(view, { angle: .35, pitch: .82, distance: 88 });
-    world.player.position.set(0, 0, 0); world.updateCamera(view, true);
+    clear(); document.body.classList.remove('exploring'); Object.assign(view, { angle: .48, pitch: .95, distance: 136, follow: false });
+    world.player.position.set(world.spawn.x, 0, world.spawn.z); world.updateCamera(view, true);
   });
-  return { keys, view, clear, get hovered() { return hovered; }, setPaused(value) { paused = value; clear(); } };
+  document.getElementById('start-adventure').addEventListener('click',focusPlayer);
+  window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='e'&&!e.repeat&&!paused&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();callbacks.interact?.();}});
+  return { keys, view, clear, focusPlayer, get hovered() { return hovered; }, setPaused(value) { paused = value; clear(); } };
 }
