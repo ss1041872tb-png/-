@@ -7,7 +7,7 @@
   <meta name="description" content="走進可愛的 3D 微縮街區，探索中和十大美食，收集你的美食旅人徽章。">
   <title>中和食光｜彎巷闖關冒險</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E🍜%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=2.0.0">
+  <link rel="stylesheet" href="styles.css?v=2.1.0">
 </head>
 <body>
   <noscript><div class="noscript">請啟用 JavaScript 以探索 3D 美食街區。店家資料與操作說明可參閱隨附 README。</div></noscript>
@@ -23,15 +23,15 @@
   <div id="hover-label" class="hover-label" hidden></div>
   <section id="journal" class="journal" role="dialog" aria-modal="true" aria-label="美食護照" hidden><div class="section-heading"><span><small>YOUR TASTY JOURNEY</small><h2>美食護照</h2></span><button id="journal-close" class="icon-button" aria-label="關閉美食護照">×</button></div><p>點選店家設定下一站；走到店前完成三關，再過橋點招牌收藏徽章。</p><div id="badges" class="badges"></div><div id="completion" class="completion" hidden><span aria-hidden="true">🏆</span><small>ALLEY ADVENTURER · 30 / 30</small><h3>你是中和巷弄冒險家！</h3><p>十個街角，十種好滋味。帶著護照，繼續發掘日常裡的美好。</p></div><p id="achievement" role="status">集滿 10 枚徽章，成為中和美食旅人。</p><p id="storage-notice" class="storage-notice" role="status" hidden>瀏覽器無法儲存進度；這次探索仍可正常集章，關閉分頁後可能遺失。</p><button id="reset-progress" class="text-button">重新開始探索</button><div id="reset-confirm" class="reset-confirm" hidden><p>要清除這次冒險的全部關卡進度與徽章嗎？舊版護照會保留。此動作無法復原。</p><div><button id="reset-cancel">保留徽章</button><button id="reset-confirm-button">清除並重新開始</button></div></div></section>
   <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="shop-name" hidden>
-    <div class="food-hero"><img id="food-image" alt=""><span id="image-note" class="image-note">示意插畫・店家實拍尚待取得</span><button id="close" class="icon-button" aria-label="關閉店家介紹">×</button></div>
-    <div class="drawer-content"><a id="photo-source" class="photo-source" target="_blank" rel="noopener noreferrer">查看照片來源 ↗</a><div class="shop-meta"><span id="category" class="pill"></span><span id="stamp" class="stamp">✓ 已收集徽章</span></div><small id="shop-number" class="eyebrow"></small><h2 id="shop-name"></h2><p id="description"></p><div class="recommend"><h3>這一站，吃什麼？</h3><div id="tags" class="tags"></div></div><div class="address"><span>↗</span><div><small>店家地址</small><p id="address"></p></div></div><a id="navigation" class="navigation" target="_blank" rel="noopener noreferrer">用 Google Maps 出發 <span>↗</span></a><p class="disclaimer">街區為風格化示意，非真實地理位置。橋壽司位於永和區；出發前請再次確認地址與營業資訊。</p></div>
+    <div class="food-hero"><img id="food-image" alt=""><div id="food-model" hidden></div><div class="food-turn"><button id="food-left" aria-label="向左旋轉餐點">↶</button><span>拖曳轉一轉 · 3D 餐桌</span><button id="food-right" aria-label="向右旋轉餐點">↷</button></div><span id="image-note" class="image-note">原創 3D 餐點示意・非店家實拍</span><button id="close" class="icon-button" aria-label="關閉店家介紹">×</button></div>
+    <div class="drawer-content"><div class="shop-meta"><span id="category" class="pill"></span><span id="stamp" class="stamp">✓ 已收集徽章</span></div><small id="shop-number" class="eyebrow"></small><h2 id="shop-name"></h2><p id="description"></p><div class="recommend"><h3>這一站，吃什麼？</h3><div id="tags" class="tags"></div></div><div class="address"><span>↗</span><div><small>店家地址</small><p id="address"></p></div></div><a id="navigation" class="navigation" target="_blank" rel="noopener noreferrer">用 Google Maps 出發 <span>↗</span></a><p class="disclaimer">街區為風格化示意，非真實地理位置。橋壽司位於永和區；出發前請再次確認地址與營業資訊。</p></div>
   </aside>
   <section id="help" class="utility-panel" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
     <div class="section-heading"><span><small>MAKE YOURSELF AT HOME</small><h2 id="help-title">小鎮探索指南</h2></span><button id="help-close" class="icon-button" aria-label="關閉探索指南">×</button></div>
     <p class="help-lead">自由逛街、點亮招牌，收集十枚美食徽章。</p>
-    <dl class="help-controls"><div><dt>走進街區</dt><dd>WASD／方向鍵移動；手機按住虛擬方向鍵。</dd></div><div><dt>換個角度</dt><dd>滑鼠或單指拖曳旋轉；滾輪或雙指開合縮放。方向鍵沿小地圖上、下、左、右移動。</dd></div><div><dt>發現好味道</dt><dd>先走到店前金色路標，按 E 或「開始闖關」。每店完成三關後，過橋點招牌才能集章；美食護照只能指定目的地。</dd></div><div><dt>找到下一站</dt><dd>展開小地圖、選擇編號，跟著金色路標走到店前。地圖是虛構配置；實際出發請使用 Google Maps。</dd></div></dl>
+    <dl class="help-controls"><div><dt>走進街區</dt><dd>WASD／方向鍵移動；手機按住虛擬方向鍵。</dd></div><div><dt>換個角度</dt><dd>滑鼠或單指拖曳旋轉；滾輪或雙指開合縮放。移動會跟隨目前鏡頭方向：前進朝畫面前方，左右朝畫面兩側。</dd></div><div><dt>發現好味道</dt><dd>先走到店前金色路標，按 E 或「開始闖關」。每店完成三關後，過橋點招牌才能集章；美食護照只能指定目的地。</dd></div><div><dt>找到下一站</dt><dd>展開小地圖、選擇編號，跟著金色路標走到店前。地圖是虛構配置；實際出發請使用 Google Maps。</dd></div></dl>
     <div class="preference"><label><span><strong>音效</strong><small>首次操作後播放腳步、積木、勝負與集章音效。</small></span><input id="sound-enabled" type="checkbox" checked></label><label><span><strong>音量</strong><small>可隨時靜音，關卡不依賴聽覺判斷。</small></span><input id="sound-volume" type="range" min="0" max="0.6" step="0.05" value="0.35" aria-label="音效音量"></label><label><span><strong>省電模式</strong><small>降低解析度、關閉陰影，每秒最多更新 30 次。</small></span><input id="power-saving" type="checkbox"></label><label><span><strong>減少動態</strong><small>暫停 NPC 與人物擺動，視角不再自動緩動。</small></span><input id="reduced-motion" type="checkbox"></label></div>
-    <p class="help-note">新版闖關進度另存於目前瀏覽器，舊版護照保留。插畫清楚標示，店家實拍來源查核中；店家地址與營業狀態請於出發前確認；橋壽司位於永和區。</p>
+    <p class="help-note">新版闖關進度另存於目前瀏覽器，舊版護照保留。餐點為可旋轉的原創 3D 示意，非店家實拍；店家地址與營業狀態請於出發前確認；橋壽司位於永和區。</p>
     <button id="help-done" class="primary-button">開始探索 →</button>
   </section>
   <footer class="bottom-bar"><div class="controls"><span class="key-group"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移動</span></span><i></i><span>滑鼠拖曳 <b>旋轉</b></span><span>滾輪 <b>縮放</b></span></div><div class="explore-hint"><span>✦</span> 店前按 E 闖關，過橋解鎖好滋味</div><div class="view-actions"><button id="sound-toggle" class="view-button" aria-label="關閉音效" aria-pressed="true">🔊</button><button id="help-toggle" class="view-button" aria-label="玩法與設定" aria-haspopup="dialog">? <span>玩法與設定</span></button><button id="reset-view" class="view-button" aria-label="回到起始視角">⌖ <span>重設視角</span></button></div></footer>
@@ -60,7 +60,9 @@
     <div class="section-heading"><span><small>THREE CHALLENGES, ONE TASTY STOP</small><h2 id="quest-title">街角任務</h2></span><button id="quest-close" class="icon-button" aria-label="離開關卡">×</button></div>
     <div id="quest-progress" class="quest-progress"></div><h3 id="quest-game-title"></h3><div id="quest-game"></div><p id="quest-feedback" class="quest-feedback" role="status" aria-live="polite"></p>
   </section>
+  <canvas id="celebration-canvas" aria-hidden="true" hidden></canvas>
+  <div id="celebration-banner" role="status" aria-live="polite" hidden></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="src/main.js?v=2.0.0"></script>
+  <script type="module" src="src/main.js?v=2.1.0"></script>
 </body>
 </html>

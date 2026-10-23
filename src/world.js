@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
-import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=2.0.0';
-import { plans } from './campaign.js?v=2.0.0';
+import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=2.1.0';
+import { plans } from './campaign.js?v=2.1.0';
 
 export function createWorld(container, shops) {
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b8d5d2');scene.fog=new THREE.Fog('#b8d5d2',160,290);
@@ -90,6 +90,8 @@ export function createWorld(container, shops) {
   }
 
  const player=person('旅人','#e3a13d');player.position.set(spawn.x,0,spawn.z);
+ const markerCanvas=document.createElement('canvas');markerCanvas.width=192;markerCanvas.height=192;const markerContext=markerCanvas.getContext('2d');markerContext.fillStyle='#203d37';markerContext.beginPath();markerContext.moveTo(20,66);markerContext.lineTo(172,66);markerContext.lineTo(96,176);markerContext.closePath();markerContext.lineWidth=13;markerContext.strokeStyle='#fff9dc';markerContext.stroke();markerContext.fill();markerContext.fillStyle='#ffe08a';markerContext.beginPath();markerContext.moveTo(48,82);markerContext.lineTo(144,82);markerContext.lineTo(96,148);markerContext.fill();markerContext.font='bold 38px sans-serif';markerContext.textAlign='center';markerContext.fillStyle='#203d37';markerContext.fillText('你在這',96,45);
+ const playerMarker=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(markerCanvas),depthTest:false,depthWrite:false,transparent:true,sizeAttenuation:false}));playerMarker.scale.set(.078,.078,1);playerMarker.position.y=3.7;playerMarker.renderOrder=999;playerMarker.raycast=()=>{};player.add(playerMarker);
  const halo=new THREE.Mesh(new THREE.RingGeometry(.6,.76,28),new THREE.MeshBasicMaterial({color:'#ffec9f',side:THREE.DoubleSide}));halo.rotation.x=-Math.PI/2;halo.position.y=.17;player.add(halo);
  const npcs=[];for(let i=0;i<16;i++){const g=person(['學生','上班族','遊客'][i%3],['#6d9eac','#eee3c5','#c57561'][i%3]);g.scale.setScalar(.85);const t=i*roadLength/16,p=roadAt(t,2.9);g.position.set(p.x,.08,p.z);g.rotation.y=p.yaw;npcs.push({g,t,phase:i});}
  for(const i of [0,3,6,9]){const b=buildings[i],g=person('店員','#779d80'),p=localPoint(b.lot,-3.5,4.6);g.position.set(p.x,.1,p.z);g.rotation.y=b.lot.yaw;npcs.push({g,stationary:true,phase:i});}
@@ -116,5 +118,5 @@ export function createWorld(container, shops) {
  let powerSaving=false;function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(powerSaving?1:Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);}
  function setPreferences(p){powerSaving=p.powerSaving;renderer.shadowMap.enabled=!powerSaving;renderer.shadowMap.needsUpdate=true;resize();}
  setQuestProgress(questCounts);
- return {scene,renderer,camera,player,npcs,vehicles,buildings,signMeshes,canStand,staticClear,pick,walk,updateNPCs,updateTraffic,updateCamera,setSigns,setPreferences,resize,setDestination,destinationMarker:marker,setQuestProgress,spawn};
+ return {scene,renderer,camera,player,playerMarker,npcs,vehicles,buildings,signMeshes,canStand,staticClear,pick,walk,updateNPCs,updateTraffic,updateCamera,setSigns,setPreferences,resize,setDestination,destinationMarker:marker,setQuestProgress,spawn};
 }

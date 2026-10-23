@@ -13,7 +13,7 @@ with sync_playwright() as p:
  page.set_content((ROOT / 'dist/zhonghe-food-explorer-preview.html').read_text(),wait_until='load')
  page.wait_for_function('document.body.dataset.ready === "true"',timeout=30000)
  assert page.locator('#world canvas').is_visible()
- page.evaluate('const w=__explorer.world,p=w.buildings[0].approach;w.player.position.set(p.x,0,p.z)')
+ page.evaluate('const w=__explorer.world,p=w.buildings[0].approach;w.player.position.set(p.x,0,p.z);Object.assign(__explorer.controls.view,{angle:0,follow:true});w.updateCamera(__explorer.controls.view,true)')
  page.keyboard.press('e');page.locator('#quest-begin').click()
  for i in range(3):
   angle=int(page.locator(f'[data-slot="{i}"]').inner_text().split('・')[1].replace('°',''))
@@ -26,6 +26,9 @@ with sync_playwright() as p:
  page.locator('#world canvas').focus();page.keyboard.down('w')
  page.wait_for_function('__explorer.world.player.position.z<27')
  page.keyboard.up('w')
+ page.evaluate('__explorer.ui.showShop(__explorer.shops[6],false)')
+ page.wait_for_function('document.getElementById("food-model").dataset.ready==="7"')
+ assert page.locator('#food-model canvas').is_visible()
  assert not errors,errors
  assert not external,external
  page.screenshot(path='/tmp/standalone-preview.png')
