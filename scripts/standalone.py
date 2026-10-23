@@ -1,0 +1,57 @@
+"""Create a single HTML preview that runs from file:// without a web server."""
+from pathlib import Path
+import base64
+import hashlib
+import json
+
+root = Path(__file__).resolve().parents[1]
+def encode(text):
+    return base64.b64encode(text.encode('utf-8')).decode('ascii')
+
+provenance = json.loads((root / 'vendor/provenance.json').read_text())
+assert hashlib.sha256((root / 'vendor/three.module.js').read_bytes()).hexdigest() == provenance['module_sha256']
+foods = {p.stem: 'data:image/svg+xml;base64,' + base64.b64encode(p.read_bytes()).decode('ascii') for p in sorted((root / 'assets').glob('*.svg'))}
+modules = []
+for name, path, imports in [
+    ('three', 'vendor/three.module.js', {}),
+    ('data', 'src/data.js', {}),
+    ('ui', 'src/ui.js', {}),
+    ('controls', 'src/controls.js', {}),
+    ('navigation', 'src/navigation.js', {}),
+    ('world', 'src/world.js', {'../vendor/three.module.js': 'three'}),
+    ('main', 'src/main.js', {'./data.js':'data','./ui.js':'ui','./controls.js':'controls','./navigation.js':'navigation','./world.js':'world'}),
+]:
+    source = (root / path).read_text()
+    if name == 'ui':
+        source = 'const embeddedFood = ' + json.dumps(foods) + ';\n' + source
+        source = source.replace('`assets/${foodAssets[shop.id - 1]}.svg`', 'embeddedFood[foodAssets[shop.id - 1]]')
+    modules.append({'name': name, 'source': encode(source), 'imports': imports})
+bootstrap = '''
+// Embedded original source modules, Three.js and food artwork. No external requests.
+(async () => {
+  const modules = MODULES;
+  const urls = {};
+  for (const module of modules) {
+    let source = new TextDecoder().decode(Uint8Array.from(atob(module.source), c => c.charCodeAt(0)));
+    for (const [specifier, dependency] of Object.entries(module.imports)) {
+      source = source.replaceAll("'" + specifier + "'", JSON.stringify(urls[dependency]));
+    }
+    urls[module.name] = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+  }
+  await import(urls.main);
+})().catch(error => {
+  console.error(error);
+  document.getElementById('loading').hidden = true;
+  document.getElementById('error').hidden = false;
+  document.getElementById('error-message').textContent = '無法啟動預覽，請以最新版 Chrome 或 Edge 開啟這份 HTML 檔案。';
+});
+'''.replace('MODULES', json.dumps(modules, separators=(',', ':')))
+html = (root / 'index.html').read_text()
+html = html.replace('<link rel="stylesheet" href="styles.css">', '<style>\n' + (root / 'styles.css').read_text() + '</style>')
+html = html.replace('<script type="module" src="src/main.js"></script>', '<script>\n' + bootstrap + '</script>')
+license_text = (root / 'vendor/THREE-LICENSE.txt').read_text()
+html = '<!-- Single-file local preview. Three.js 0.160.1: ' + license_text.replace('--', '—') + '-->\n' + html
+output = root / 'dist/zhonghe-food-explorer-preview.html'
+output.parent.mkdir(exist_ok=True)
+output.write_text(html)
+print(f'{output}: {output.stat().st_size} bytes; no HTTP server required')
