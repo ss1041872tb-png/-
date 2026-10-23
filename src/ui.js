@@ -1,9 +1,9 @@
-import { createFoodView } from './food-view.js?v=2.1.0';
+import { createFoodView, foodImage } from './food-view.js?v=3.0.0';
 export function createUI(shops, onPause, onPreferences = () => {}, services = {}) {
   const $ = id => document.getElementById(id);
   const foodView=createFoodView();
   const drawer = $('drawer'), journal = $('journal'), help = $('help');
-  const panels = [drawer, journal, help, $('quest')];
+  const panels = [drawer, journal, help, $('reward')];
   const preferences = { powerSaving: false, reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches };
   const preferencesKey = 'zhonghe-food-preferences-v1';
   try {
@@ -11,9 +11,10 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     if (saved && typeof saved.powerSaving === 'boolean') preferences.powerSaving = saved.powerSaving;
     if (saved && typeof saved.reducedMotion === 'boolean') preferences.reducedMotion = saved.reducedMotion;
   } catch { /* Unavailable storage does not prevent changing settings for this session. */ }
+  document.body.classList.toggle('reduce-effects',preferences.reducedMotion);
   $('power-saving').checked = preferences.powerSaving;
   $('reduced-motion').checked = preferences.reducedMotion;
-  const background = [...document.querySelectorAll('#world, .topbar, .intro, .bottom-bar, #mobile, #navigator, #interact')];
+  const background = [...document.querySelectorAll('#world, .topbar, .intro, .bottom-bar, #mobile, #navigator, #interact, #hunt-hud, #door-hint')];
   const visited = services.campaign.visited;
   let returnFocus = null, toastTimer;
   function toast(text) {
@@ -22,24 +23,24 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
   }
   const buttons = shops.map(shop => {
     const button = document.createElement('button'); button.className = 'badge'; button.dataset.shopId = shop.id;
-    const icon = document.createElement('span'); icon.textContent = shop.emoji;
+    const icon = document.createElement('span'); icon.textContent = shop.emoji; const picture=document.createElement('img');picture.src=foodImage(shop.id);picture.alt=shop.tags[0]+'原創 3D 美食';picture.className='collection-food';picture.hidden=true;icon.append(picture);
     const name = document.createElement('div'); name.append(document.createTextNode(shop.name));
     const state = document.createElement('small'); name.append(state); button.append(icon, name);
-    button.addEventListener('click', () => services.requestShop(shop)); $('badges').append(button);
-    return { button, state, shop };
+    button.addEventListener('click', () => visited.has(shop.id)?showShop(shop,false):services.requestShop(shop)); $('badges').append(button);
+    return { button, state, shop, picture };
   });
   function updateProgress() {
     $('count').textContent = visited.size;
-    $('journal-toggle').setAttribute('aria-label', `美食護照，已探索 ${visited.size} / 10 家`);
-    for (const { button, state, shop } of buttons) {
-      const collected = visited.has(shop.id); button.classList.toggle('collected', collected);
-      state.textContent = collected ? '✓ 已收藏' : `🔒 ${services.campaign.count(shop.id)} / 3 關・前往探險`;
+    $('journal-toggle').setAttribute('aria-label', `美食收集箱，已收藏 ${visited.size} / 10 道美食`);
+    for (const { button, state, shop, picture } of buttons) {
+      const collected = visited.has(shop.id); button.classList.toggle('collected', collected);picture.hidden=!collected;
+      state.textContent = collected ? '✓ 已收藏' : `◇ ${services.campaign.count(shop.id)} / 2 物品・前往尋寶`;
     }
     $('storage-notice').hidden = services.campaign.storageAvailable;
     $('task-count').textContent = services.campaign.stages.reduce((a,b)=>a+b,0);
     $('completion').hidden = visited.size !== shops.length;
     $('reset-progress').disabled = visited.size === 0 && services.campaign.stages.every(n=>n===0);
-    $('achievement').textContent = visited.size === 10 ? '🏆 十站達成！你是中和美食旅人。' : `已收藏 ${visited.size} / 10 枚，下一站也值得期待。`;
+    $('achievement').textContent = visited.size === 10 ? '🏆 十站達成！你是中和美食旅人。' : `已收藏 ${visited.size} / 10 道美食，下一站也值得期待。`;
   }
   function close(restore = true) {
     foodView.hide();
@@ -66,8 +67,8 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     if (collect && !services.campaign.unlocked(shop.id)) { services.requestShop(shop); return; }
     document.body.classList.add('exploring');
     const isNew = collect && !visited.has(shop.id);
-    if (collect) services.campaign.collect(shop.id);
-    $('stamp').textContent = collect ? '✓ 已收集徽章' : '資料預覽・完成闖關後集章';
+    if (collect) updateProgress();
+    $('stamp').textContent = collect ? '✓ 已收集招牌美食' : visited.has(shop.id)?'✓ 已收藏招牌美食':'資料預覽・入店尋寶獲得美食';
     $('shop-name').textContent = shop.name; $('category').textContent = shop.category;
     $('description').textContent = shop.description; $('address').textContent = shop.address;
     $('shop-number').textContent = `TASTY STOP ${String(shop.id).padStart(2, '0')} / 10`;
@@ -95,13 +96,14 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
   $('reset-confirm-button').addEventListener('click', () => {
     services.campaign.reset(); updateProgress();
     $('reset-confirm').hidden = true; $('journal-close').focus();
-    toast('美食護照已重新開始，下一個街角見！');
+    toast('美食收集箱已重新開始，下一個街角見！');
   });
   for (const [id, key] of [['power-saving', 'powerSaving'], ['reduced-motion', 'reducedMotion']]) {
     $(id).addEventListener('change', () => {
       preferences[key] = $(id).checked;
       try { localStorage.setItem(preferencesKey, JSON.stringify(preferences)); }
       catch { toast('這次設定已套用；瀏覽器暫時無法永久儲存。'); }
+      document.body.classList.toggle('reduce-effects',preferences.reducedMotion);
       onPreferences(preferences);
     });
   }
@@ -118,10 +120,11 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     $('sound-toggle').textContent = services.sound.enabled ? '🔊' : '🔇';
     $('sound-toggle').setAttribute('aria-pressed', String(services.sound.enabled));
     $('sound-toggle').setAttribute('aria-label', services.sound.enabled ? '關閉音效' : '開啟音效');
-    $('sound-enabled').checked = services.sound.enabled; $('sound-volume').value = services.sound.volume;
+    $('music-enabled').checked=services.sound.musicEnabled; $('sound-enabled').checked = services.sound.enabled; $('sound-volume').value = services.sound.volume;
   }
   $('sound-toggle').addEventListener('click',()=>{services.sound.setEnabled(!services.sound.enabled);updateSound();services.sound.play('click');});
   $('sound-enabled').addEventListener('change',()=>{services.sound.setEnabled($('sound-enabled').checked);updateSound();});
+  $('music-enabled').addEventListener('change',()=>services.sound.setMusicEnabled($('music-enabled').checked));
   $('sound-volume').addEventListener('input',()=>services.sound.setVolume($('sound-volume').value));
   services.campaign.subscribe(updateProgress); updateSound();
   updateProgress();

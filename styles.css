@@ -1045,3 +1045,52 @@ body.panel-open .interact-button { display:none; }
 .victory-medal { display:flex; align-items:center; gap:16px; padding:18px; background:linear-gradient(120deg,#fae2a0,#fff6d9); border:1px solid #d6b459; border-radius:18px; margin:18px 0; }
 .victory-medal>span { width:58px; height:58px; flex-shrink:0; display:grid; place-items:center; font-size:42px; border:3px double #c09332; color:#9c6b22; border-radius:50%; background:#ffeab3; }
 .victory-medal strong { font-size:20px; line-height:1.7; color:#66502a; }
+
+/* Store interiors keep movement available; only the food reward is a modal. */
+.door-hint,.hunt-hud { position:fixed; z-index:11; top:115px; left:50%; transform:translateX(-50%); width:min(540px,calc(100vw - 32px)); border:1px solid #e7cf90; border-radius:20px; padding:17px 21px; background:#fff9e9f2; color:#294c3e; box-shadow:0 8px 35px #183b3930; }
+.door-hint { pointer-events:none; }
+.door-hint small,.hunt-hud small { font-size:10px; letter-spacing:2px; color:#91753d; }
+.door-hint h2,.hunt-hud h2 { margin:5px 0; font-size:22px; line-height:1.4; }
+.door-hint p { margin:8px 0; font-size:18px; }
+.door-hint>span { font-size:15px; }
+.hunt-heading { display:flex; gap:12px; align-items:center; justify-content:space-between; }
+.hunt-heading>strong { flex-shrink:0; font-size:27px; color:#9b7130; }
+#hunt-items { display:flex; flex-wrap:wrap; gap:8px; list-style:none; padding:0; margin:10px 0; }
+#hunt-items li { padding:7px 12px; border-radius:9px; border:1px solid #d6c595; font-size:18px; background:#f6e8bc; }
+#hunt-items li.found { background:#d2e5c5; color:#3e6a43; text-decoration:line-through; }
+#hunt-hint { font-size:16px; line-height:1.6; margin:9px 0; }
+.hunt-actions { display:flex; gap:7px; flex-wrap:wrap; }
+.hunt-actions button { border:1px solid #a0b297; border-radius:10px; padding:9px 10px; font-size:14px; background:#f9fcf1; color:#2e5846; }
+body.inside-store .intro { display:none; }
+body.inside-store .location { visibility:hidden; }
+.reward-panel { position:fixed; z-index:35; left:50%; top:50%; transform:translate(-50%,-50%); width:min(510px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; text-align:center; border:2px solid #eccf88; border-radius:25px; padding:26px; background:#fff9e9; box-shadow:0 10px 120px #102d3870; }
+.reward-panel small { color:#976c32; font-size:11px; letter-spacing:2px; }
+.reward-panel h2 { font-size:31px; margin:12px 0; color:#315443; }
+.reward-panel p { font-size:17px; line-height:1.6; }
+#reward-food { width:100%; height:270px; object-fit:contain; border-radius:20px; background:#e5ddcb; }
+.reward-panel[data-phase="show"] #reward-food { animation:food-arrive .55s ease-out; }
+.reward-panel[data-phase="collecting"] { overflow:visible; }
+.collection-food { width:100%; height:100%; object-fit:cover; border-radius:8px; }
+.badge.collected>span { font-size:0; width:86px; height:60px; flex-shrink:0; }
+@keyframes food-arrive { from { transform:scale(.25); opacity:0; } to { transform:scale(1); opacity:1; } }
+@keyframes box-pop { 0%,100% { scale:1; } 50% { scale:1.1; background:#ffe4a1; } }
+.box-pop { animation:box-pop .6s ease-in-out; }
+@media(max-width:700px){
+ .door-hint,.hunt-hud { top:95px; padding:11px 13px; }
+ .hunt-hud h2,.door-hint h2 { font-size:19px; }
+ .hunt-hud small { font-size:9px; }
+ #hunt-items li { font-size:16px; padding:5px 8px; }
+ #hunt-hint { font-size:15px; }
+ .hunt-actions button { font-size:13px; padding:8px; }
+ #reward-food { height:215px; }
+ .reward-panel { padding:20px; }
+ .reward-panel h2 { font-size:26px; }
+ .badge.collected>span { width:67px; height:53px; }
+}
+@media(max-height:500px){ .hunt-hud { top:8px; left:14px; transform:none; width:335px; padding:8px 12px; } .hunt-hud small { display:none; } #hunt-hint { font-size:14px; margin:5px 0; } .hunt-hud h2 { font-size:18px; } #hunt-items li { font-size:15px; padding:3px 7px; } .door-hint { top:20px; } }
+@media(prefers-reduced-motion:reduce){ .reward-panel[data-phase="show"] #reward-food,.box-pop { animation:none; } }
+@media(min-width:701px) and (min-height:501px){ .hunt-hud { left:20px; transform:none; width:300px; } .hunt-hud h2 { font-size:20px; } #hunt-items li { font-size:17px; } }
+.hunt-actions button:disabled { opacity:.45; cursor:default; }
+body.panel-open #hunt-hud,body.panel-open #door-hint { visibility:hidden; }
+
+body.reduce-effects .reward-panel[data-phase="show"] #reward-food,body.reduce-effects .box-pop { animation:none; }
