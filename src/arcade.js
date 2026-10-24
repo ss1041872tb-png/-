@@ -1,6 +1,6 @@
-import { createNewGames } from './newgames.js?v=6.2.0';
-import { plans,gameNames } from './campaign.js?v=6.2.0';
-import { foodImage } from './food-view.js?v=6.2.0';
+import { createNewGames } from './newgames.js?v=6.3.0';
+import { plans,gameNames } from './campaign.js?v=6.3.0';
+import { foodImage } from './food-view.js?v=6.3.0';
 export function createArcade(campaign,ui,sound,reward){
  const $=id=>document.getElementById(id),panel=$('arcade'),area=$('arcade-game');let shop=null,cleanup=()=>{},activeState=null,finished=false;
  function clean(){cleanup();cleanup=()=>{};activeState=null;area.replaceChildren();}
