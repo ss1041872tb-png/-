@@ -1,6 +1,6 @@
 export function createControls(world, callbacks) {
   const canvas = world.renderer.domElement, keys = new Set();
-  const view = { angle: .48, pitch: .95, distance: 136, follow: false };
+  const view = { angle: .48, pitch: .95, distance: 136, follow: false, firstPerson:false, panMode:false,panX:0,panY:0 };
   let pointer = null, hovered = null, paused = false;
   const pointers = new Map();
   let gesture = false, lastPinch = 0;
@@ -54,7 +54,7 @@ export function createControls(world, callbacks) {
       const dx = e.clientX - pointer.x, dy = e.clientY - pointer.y;
       if (Math.hypot(e.clientX - pointer.startX, e.clientY - pointer.startY) > 6) pointer.moved = true;
       if (pointer.moved) {
-        view.angle -= dx * .005; view.pitch = Math.max(.48, Math.min(1.2, view.pitch + dy * .004));
+        if(view.panMode){view.panX=Math.max(-innerWidth*.6,Math.min(innerWidth*.6,(view.panX||0)+dx));view.panY=Math.max(-innerHeight*.6,Math.min(innerHeight*.6,(view.panY||0)+dy));}else{view.angle -= dx * .005; view.pitch = Math.max(.48, Math.min(1.2, view.pitch + dy * .004));}
         hovered = null; hoverLabel.hidden = true;
       }
       pointer.x = e.clientX; pointer.y = e.clientY;
@@ -96,10 +96,12 @@ export function createControls(world, callbacks) {
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, release);
   });
   document.getElementById('reset-view').addEventListener('click', () => {
-    clear(); document.body.classList.remove('exploring'); Object.assign(view, { angle: .48, pitch: .95, distance: 136, follow: false });
+    clear(); document.body.classList.remove('exploring'); Object.assign(view, { angle: .48, pitch: .95, distance: 136, follow: false,panX:0,panY:0,firstPerson:false });
     world.player.position.set(world.spawn.x, 0, world.spawn.z); world.updateCamera(view, true);
   });
   document.getElementById('start-adventure').addEventListener('click',focusPlayer);
-  window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='e'&&!e.repeat&&!paused&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();callbacks.interact?.();}});
+  document.getElementById('camera-mode').addEventListener('click',e=>{view.firstPerson=!view.firstPerson;view.follow=true;clear();e.currentTarget.textContent=view.firstPerson?'切回俯視':'第一人稱';e.currentTarget.setAttribute('aria-pressed',String(view.firstPerson));});
+  document.getElementById('pan-mode').addEventListener('click',e=>{view.panMode=!view.panMode;e.currentTarget.textContent=view.panMode?'平移中':'旋轉中';e.currentTarget.setAttribute('aria-pressed',String(view.panMode));});
+  document.getElementById('center-camera').addEventListener('click',()=>{view.panX=0;view.panY=0;});
   return { keys, view, clear, focusPlayer, get hovered() { return hovered; }, setPaused(value) { paused = value; clear(); } };
 }

@@ -7,7 +7,7 @@
   <meta name="description" content="走進可愛的 3D 微縮街區，探索中和十大美食，進入店內尋找物品，收藏招牌美食。">
   <title>中和食光｜巷弄尋寶食光</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E🍜%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=3.0.0">
+  <link rel="stylesheet" href="styles.css?v=4.0.0">
 </head>
 <body>
   <noscript><div class="noscript">請啟用 JavaScript 以探索 3D 美食街區。店家資料與操作說明可參閱隨附 README。</div></noscript>
@@ -29,7 +29,7 @@
   <section id="help" class="utility-panel" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
     <div class="section-heading"><span><small>MAKE YOURSELF AT HOME</small><h2 id="help-title">小鎮探索指南</h2></span><button id="help-close" class="icon-button" aria-label="關閉探索指南">×</button></div>
     <p class="help-lead">走進十間小店、搜尋二十件藏物，收藏十道招牌美食。</p>
-    <dl class="help-controls"><div><dt>走進街區</dt><dd>WASD／方向鍵移動；手機按住虛擬方向鍵。</dd></div><div><dt>換個角度</dt><dd>滑鼠或單指拖曳旋轉；滾輪或雙指開合縮放。移動會跟隨目前鏡頭方向：前進朝畫面前方，左右朝畫面兩側。</dd></div><div><dt>發現好味道</dt><dd>走到門口會自動顯示任務，繼續往前走就能進店。靠近家具，按 E、點家具或手機搜尋按鈕找物品；集齊兩件，自動獲得招牌美食。可隨時走回門口離店。</dd></div><div><dt>找到下一站</dt><dd>展開小地圖、選擇編號，跟著金色路標走到店前。地圖是虛構配置；實際出發請使用 Google Maps。</dd></div></dl>
+    <dl class="help-controls"><div><dt>走進街區</dt><dd>WASD／方向鍵移動；手機按住虛擬方向鍵。</dd></div><div><dt>換個角度</dt><dd>滑鼠或單指拖曳旋轉；滾輪或雙指開合縮放。移動會跟隨目前鏡頭方向：前進朝畫面前方，左右朝畫面兩側。</dd></div><div><dt>發現好味道</dt><dd>走到門口會自動顯示任務，繼續往前走就能進店。靠近家具，直接點選或觸控該位置進入特寫；集齊兩件，自動獲得招牌美食。可隨時走回門口離店。</dd></div><div><dt>找到下一站</dt><dd>展開小地圖、選擇編號，跟著金色路標走到店前。地圖是虛構配置；實際出發請使用 Google Maps。</dd></div></dl>
     <div class="preference"><label><span><strong>輕鬆背景音樂</strong><small>原創循環配樂；切換到其他分頁會暫停。</small></span><input id="music-enabled" type="checkbox" checked></label><label><span><strong>音效</strong><small>首次操作後啟用音訊，包含尋物、慶祝音樂與輕鬆配樂。</small></span><input id="sound-enabled" type="checkbox" checked></label><label><span><strong>音量</strong><small>可隨時靜音，關卡不依賴聽覺判斷。</small></span><input id="sound-volume" type="range" min="0" max="0.6" step="0.05" value="0.35" aria-label="音效音量"></label><label><span><strong>省電模式</strong><small>降低解析度、關閉陰影，每秒最多更新 30 次。</small></span><input id="power-saving" type="checkbox"></label><label><span><strong>減少動態</strong><small>暫停 NPC 與人物擺動，視角不再自動緩動。</small></span><input id="reduced-motion" type="checkbox"></label></div>
     <p class="help-note">新版尋寶進度另存於目前瀏覽器，舊版護照保留。餐點為可旋轉的原創 3D 示意，非店家實拍；店家地址與營業狀態請於出發前確認；橋壽司位於永和區。</p>
     <button id="help-done" class="primary-button">開始探索 →</button>
@@ -57,11 +57,14 @@
   </section>
   <button id="interact" class="interact-button" hidden>搜尋家具</button>
   <section id="door-hint" class="door-hint" role="status" hidden><small>WELCOME · 店門口任務</small><h2 id="door-title"></h2><p>找到 <strong id="door-items"></strong></p><span>繼續朝店門走 → 進店探索</span></section>
-  <section id="hunt-hud" class="hunt-hud" aria-label="店內尋物任務" hidden><div class="hunt-heading"><span><small>ROOM EXPLORER · 店內尋寶</small><h2 id="hunt-title"></h2></span><strong id="hunt-progress">0 / 2</strong></div><ul id="hunt-items"></ul><p id="hunt-hint" role="status" aria-live="polite"></p><div class="hunt-actions"><button id="hunt-clue">💡 給我線索</button><button id="hunt-food">🍜 查看招牌美食</button><button id="hunt-exit">🚪 離開店內</button></div></section>
+  <section id="hunt-hud" class="hunt-hud" aria-label="店內尋物任務" hidden><div class="hunt-heading"><span><small>ROOM EXPLORER · 店內尋寶</small><h2 id="hunt-title"></h2></span><strong id="hunt-progress">0 / 2</strong></div><button id="hud-collapse" class="hud-collapse">收合線索</button><ul id="hunt-items"></ul><p id="hunt-hint" role="status" aria-live="polite"></p><div class="hunt-actions"><button id="hunt-clue">💡 給我線索</button><button id="hunt-food">🍜 查看招牌美食</button><button id="hunt-exit">🚪 離開店內</button></div></section>
   <section id="reward" class="reward-panel" role="dialog" aria-modal="true" aria-labelledby="reward-title" hidden><small>DELICIOUS DISCOVERY · 尋寶成功</small><h2 id="reward-title"></h2><p id="reward-shop"></p><img id="reward-food" alt=""><p>📦 招牌美食即將自動飛進收集箱</p><button id="reward-done" class="primary-button">收好了，繼續探索 →</button></section>
+  <div id="furniture-labels"></div>
+  <div class="camera-toolbar"><button id="camera-mode" aria-pressed="false">第一人稱</button><button id="pan-mode" aria-pressed="false">旋轉中</button><button id="center-camera">畫面置中</button></div>
+  <section id="inspection" hidden><strong id="inspection-title"></strong><button id="inspection-close">離開特寫 ×</button><p id="inspection-message" role="status"></p></section>
   <canvas id="celebration-canvas" aria-hidden="true" hidden></canvas>
   <div id="celebration-banner" role="status" aria-live="polite" hidden></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="src/main.js?v=3.0.0"></script>
+  <script type="module" src="src/main.js?v=4.0.0"></script>
 </body>
 </html>

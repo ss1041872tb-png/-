@@ -1,11 +1,11 @@
-import { createCelebration } from './celebration.js?v=3.0.0';
-import { shops } from './data.js?v=3.0.0';
-import { createUI } from './ui.js?v=3.0.0';
-import { createControls } from './controls.js?v=3.0.0';
-import { createNavigation } from './navigation.js?v=3.0.0';
-import { createCampaign, hunts } from './campaign.js?v=3.0.0';
-import { createSound } from './sound.js?v=3.0.0';
-import { createReward } from './reward.js?v=3.0.0';
+import { createCelebration } from './celebration.js?v=4.0.0';
+import { shops } from './data.js?v=4.0.0';
+import { createUI } from './ui.js?v=4.0.0';
+import { createControls } from './controls.js?v=4.0.0';
+import { createNavigation } from './navigation.js?v=4.0.0';
+import { createCampaign, hunts } from './campaign.js?v=4.0.0';
+import { createSound } from './sound.js?v=4.0.0';
+import { createReward } from './reward.js?v=4.0.0';
 const loading=document.getElementById('loading');
 function fail(message){loading.hidden=true;document.getElementById('error').hidden=false;document.getElementById('error-message').textContent=message;}
 document.getElementById('retry').addEventListener('click',()=>location.reload());
@@ -17,7 +17,7 @@ const ui=createUI(shops,paused=>{controls?.setPaused(paused||!graphicsAvailable)
 const celebration=createCelebration(sound,ui.preferences),reward=createReward(ui,celebration);
 const timeout=setTimeout(()=>fail('載入時間較長，請確認網站檔案完整並重新載入。'),20000);
 try{
- const [{createWorld},{createInterior}]=await Promise.all([import('./world.js?v=3.0.0'),import('./interior.js?v=3.0.0')]);const world=createWorld(document.getElementById('world'),shops);worldInstance=world;world.setPreferences(ui.preferences);
+ const [{createWorld},{createInterior}]=await Promise.all([import('./world.js?v=4.0.0'),import('./interior.js?v=4.0.0')]);const world=createWorld(document.getElementById('world'),shops);worldInstance=world;world.setPreferences(ui.preferences);
  interior=createInterior(world,campaign,ui,sound,shop=>reward.show(shop));
  function nearestDoor(){const p=world.player.position;return world.buildings.map(b=>({b,distance:Math.hypot(p.x-b.entry.x,p.z-b.entry.z)})).filter(o=>o.distance<3.4).sort((a,b)=>a.distance-b.distance)[0];}
  function interact(){if(interior.active){const target=interior.nearest();if(target)interior.inspect(target);else ui.toast('走近家具，才能搜尋藏在裡面的物品。');}else{ui.toast('繼續往店門方向走，就會進入店內。');}}
@@ -30,13 +30,13 @@ try{
  let previous=performance.now(),elapsed=0,lastTraffic=0,lastDoor=0,lastAction='';
  function animate(now){requestAnimationFrame(animate);if(ui.preferences.powerSaving&&now-previous<1000/30)return;const dt=Math.min((now-previous)/1000,.04);previous=now;elapsed+=dt;
   if(!document.hidden&&graphicsAvailable){const keys=controls.keys;let x=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),z=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));let didMove=false;
-   if(!ui.paused&&(x||z)){const n=Math.hypot(x,z),m=world.camera.matrixWorld.elements,rn=Math.hypot(m[0],m[2])||1,rx=m[0]/rn,rz=m[2]/rn,speed=interior.active?4.6:7,dx=(x*rx-z*rz)/n*dt*speed,dz=(x*rz+z*rx)/n*dt*speed;x=dx;z=dz;const p=world.player.position,oldX=p.x,oldZ=p.z;const clear=(nx,nz)=>world.canStand(nx,nz)&&(interior.active||!world.npcs.some(n=>Math.hypot(nx-n.g.position.x,nz-n.g.position.z)<.95));if(clear(p.x+x,p.z))p.x+=x;if(clear(p.x,p.z+z))p.z+=z;didMove=p.x!==oldX||p.z!==oldZ;world.player.rotation.y=Math.atan2(x,z);if(didMove)sound.play('step');}
+   if(!ui.paused&&!controls.view.inspect&&(x||z)){const n=Math.hypot(x,z),m=world.camera.matrixWorld.elements,rn=Math.hypot(m[0],m[2])||1,rx=m[0]/rn,rz=m[2]/rn,speed=interior.active?4.6:7,dx=(x*rx-z*rz)/n*dt*speed,dz=(x*rz+z*rx)/n*dt*speed;x=dx;z=dz;const p=world.player.position,oldX=p.x,oldZ=p.z;const clear=(nx,nz)=>world.canStand(nx,nz)&&(interior.active||!world.npcs.some(n=>Math.hypot(nx-n.g.position.x,nz-n.g.position.z)<.95));if(clear(p.x+x,p.z))p.x+=x;if(clear(p.x,p.z+z))p.z+=z;didMove=p.x!==oldX||p.z!==oldZ;world.player.rotation.y=Math.atan2(x,z);if(didMove)sound.play('step');}
    world.walk(world.player,didMove&&!ui.preferences.reducedMotion,elapsed);
    if(!ui.paused){if(interior.active){interior.tick();doorHint.hidden=true;}else{const door=nearestDoor();doorHint.hidden=!door;if(door){if(lastDoor!==door.b.shop.id){lastDoor=door.b.shop.id;document.getElementById('door-title').textContent=`${door.b.shop.name} · 尋寶邀請`;document.getElementById('door-items').textContent=hunts[door.b.shop.id-1].map(i=>i.name).join(' ＋ ');}if(door.distance<1.05)interior.enter(door.b.shop);}else lastDoor=0;}}
    document.getElementById('navigator').hidden=!!interior.active;if(!interior.active)navigation.update(elapsed);
    if(!ui.preferences.reducedMotion&&!ui.paused&&!interior.active){world.updateNPCs(dt,elapsed);world.updateTraffic(dt);}
    if(elapsed-lastTraffic>5&&!ui.paused&&!interior.active&&world.vehicles.some(v=>Math.hypot(v.g.position.x-world.player.position.x,v.g.position.z-world.player.position.z)<8)){sound.play('car');lastTraffic=elapsed;}
-   const action=interior.active?interior.nearest():null,key=action?`${action.kind}/${action.name}`:'';actionButton.hidden=ui.paused||!action;if(key!==lastAction){lastAction=key;if(action)actionButton.textContent=action.kind==='exit'?'🚪 走回街區':`E｜搜尋${action.name}`;}
+   const action=interior.active?interior.nearest():null,key=action?`${action.kind}/${action.name}`:'';actionButton.hidden=true;if(key!==lastAction){lastAction=key;if(action)actionButton.textContent=action.kind==='exit'?'🚪 走回街區':`點選${action.name}`;}
    if(!ui.paused||sceneDirty){world.updateCamera(controls.view,ui.preferences.reducedMotion);if(!interior.active)world.setSigns(campaign.visited,controls.hovered);world.renderer.render(interior.active?interior.scene:world.scene,world.camera);sceneDirty=false;}
   }
  }

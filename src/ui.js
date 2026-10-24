@@ -1,4 +1,4 @@
-import { createFoodView, foodImage } from './food-view.js?v=3.0.0';
+import { createFoodView, foodImage } from './food-view.js?v=4.0.0';
 export function createUI(shops, onPause, onPreferences = () => {}, services = {}) {
   const $ = id => document.getElementById(id);
   const foodView=createFoodView();
@@ -14,7 +14,7 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
   document.body.classList.toggle('reduce-effects',preferences.reducedMotion);
   $('power-saving').checked = preferences.powerSaving;
   $('reduced-motion').checked = preferences.reducedMotion;
-  const background = [...document.querySelectorAll('#world, .topbar, .intro, .bottom-bar, #mobile, #navigator, #interact, #hunt-hud, #door-hint')];
+  const background = [...document.querySelectorAll('#world, .topbar, .intro, .bottom-bar, #mobile, #navigator, #interact, #hunt-hud, #door-hint, #furniture-labels, #inspection, .camera-toolbar')];
   const visited = services.campaign.visited;
   let returnFocus = null, toastTimer;
   function toast(text) {
