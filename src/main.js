@@ -1,12 +1,12 @@
-import { createArcade } from './arcade.js?v=6.2.0';
-import { createCelebration } from './celebration.js?v=6.2.0';
-import { shops } from './data.js?v=6.2.0';
-import { createUI } from './ui.js?v=6.2.0';
-import { createControls } from './controls.js?v=6.2.0';
-import { createNavigation } from './navigation.js?v=6.2.0';
-import { createCampaign } from './campaign.js?v=6.2.0';
-import { createSound } from './sound.js?v=6.2.0';
-import { createReward } from './reward.js?v=6.2.0';
+import { createArcade } from './arcade.js?v=6.3.0';
+import { createCelebration } from './celebration.js?v=6.3.0';
+import { shops } from './data.js?v=6.3.0';
+import { createUI } from './ui.js?v=6.3.0';
+import { createControls } from './controls.js?v=6.3.0';
+import { createNavigation } from './navigation.js?v=6.3.0';
+import { createCampaign } from './campaign.js?v=6.3.0';
+import { createSound } from './sound.js?v=6.3.0';
+import { createReward } from './reward.js?v=6.3.0';
 const loading=document.getElementById('loading');
 function fail(message){loading.hidden=true;document.getElementById('error').hidden=false;document.getElementById('error-message').textContent=message;}
 document.getElementById('retry').addEventListener('click',()=>location.reload());
@@ -16,22 +16,23 @@ const ui=createUI(shops,paused=>{controls?.setPaused(paused||!graphicsAvailable)
 const celebration=createCelebration(sound,ui.preferences),reward=createReward(ui,celebration);
 const timeout=setTimeout(()=>fail('載入時間較長，請確認網站檔案完整並重新載入。'),20000);
 try{
- const {createWorld}=await import('./world.js?v=6.2.0');const world=createWorld(document.getElementById('world'),shops);worldInstance=world;world.setPreferences(ui.preferences);arcade=createArcade(campaign,ui,sound,reward);
+ const {createWorld}=await import('./world.js?v=6.3.0');const world=createWorld(document.getElementById('world'),shops);worldInstance=world;world.setPreferences(ui.preferences);arcade=createArcade(campaign,ui,sound,reward);
  function nearestDoor(){const p=world.player.position;return world.buildings.map(b=>({b,distance:Math.hypot(p.x-b.entry.x,p.z-b.entry.z)})).filter(o=>o.distance<3.4).sort((a,b)=>a.distance-b.distance)[0];}
  function interact(){const door=nearestDoor();if(door){if(campaign.unlocked(door.b.shop.id))ui.showShop(door.b.shop,false);else arcade.open(door.b.shop);}}
  controls=createControls(world,{select:requestShop,interact});controls.setPaused(ui.paused);navigation=createNavigation(world,ui,campaign,requestShop);
  campaign.subscribe(reason=>{sceneDirty=true;if(reason==='reset'){reward.cancel();celebration.clear();arcade.clean();controls.clear();world.player.position.set(world.spawn.x,0,world.spawn.z);controls.view.follow=false;controls.view.distance=136;world.updateCamera(controls.view,true);}});world.updateCamera(controls.view,true);
- document.getElementById('reset-view').addEventListener('click',()=>{arcade.clean();world.player.position.set(world.spawn.x,0,world.spawn.z);Object.assign(controls.view,{follow:false,distance:136,angle:.48,pitch:.95});world.updateCamera(controls.view,true);});
+ document.getElementById('reset-view').addEventListener('click',()=>{arcade.clean();world.player.position.set(world.spawn.x,0,world.spawn.z);Object.assign(controls.view,{follow:false,distance:136,angle:.48,pitch:.8});world.updateCamera(controls.view,true);});
  const actionButton=document.getElementById('interact'),doorHint=document.getElementById('door-hint');actionButton.addEventListener('click',interact);
  world.renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();graphicsAvailable=false;controls.setPaused(true);document.getElementById('navigator').hidden=true;actionButton.hidden=true;fail('3D 顯示連線中斷，請重新載入。已完成的關卡與美食進度仍會保留。');});
  window.addEventListener('resize',()=>{world.resize();world.updateCamera(controls.view,true);sceneDirty=true;});
  let previous=performance.now(),elapsed=0,lastTraffic=0,lastDoor=0,lastAction='';
  function animate(now){requestAnimationFrame(animate);if(ui.preferences.powerSaving&&now-previous<1000/30)return;const dt=Math.min((now-previous)/1000,.04);previous=now;elapsed+=dt;
   if(!document.hidden&&graphicsAvailable){const keys=controls.keys;
-   let x=(Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')))+controls.stick.x,z=(Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup')))+controls.stick.z;let didMove=false;
-   if(!ui.paused&&(x||z)){controls.view.follow=true;const length=Math.max(1,Math.hypot(x,z));x/=length;z/=length;const a=controls.view.angle,speed=controls.view.firstPerson?5:6.5,dx=(x*Math.cos(a)+z*Math.sin(a))*dt*speed,dz=(-x*Math.sin(a)+z*Math.cos(a))*dt*speed,p=world.player.position,oldX=p.x,oldZ=p.z,r=controls.view.firstPerson?.28:-.22;
+   let x=(Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')))+controls.stick.x,z=(Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup')))+controls.stick.z;let didMove=false;const direction=controls.movement(ui.paused?0:x,ui.paused?0:z);
+   if(!ui.paused&&(x||z)){controls.view.follow=true;const speed=controls.view.firstPerson?5:6.5,dx=direction.x*dt*speed,dz=direction.z*dt*speed,p=world.player.position,oldX=p.x,oldZ=p.z,r=controls.view.firstPerson?.28:-.22;
     if(world.canStand(p.x+dx,p.z,r))p.x+=dx;if(world.canStand(p.x,p.z+dz,r))p.z+=dz;didMove=p.x!==oldX||p.z!==oldZ;if(didMove){if(!controls.view.firstPerson)world.player.rotation.y=Math.atan2(p.x-oldX,p.z-oldZ);sound.play('step');}
    }
+   if(!ui.paused)controls.followMovement(direction.x,direction.z,didMove,dt,ui.preferences.reducedMotion);
    world.walk(world.player,didMove&&!ui.preferences.reducedMotion,elapsed);
    if(!ui.paused){const door=nearestDoor();doorHint.hidden=true;if(!door){lastDoor=0;}else if(lastDoor!==door.b.shop.id){lastDoor=door.b.shop.id;if(!campaign.unlocked(door.b.shop.id))arcade.open(door.b.shop);}}
    navigation.update(elapsed);

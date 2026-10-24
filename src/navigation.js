@@ -1,4 +1,4 @@
-import { bounds, road, branches } from './layout.js?v=6.2.0';
+import { bounds, road, branches } from './layout.js?v=6.3.0';
 export function createNavigation(world,ui,campaign,onInteract){
  const $=id=>document.getElementById(id),root=$('navigator'),content=$('map-content'),toggle=$('map-toggle');
  const mapPosition=(x,z)=>({x:(x+bounds.x)/(bounds.x*2)*280,y:(z+bounds.z)/(bounds.z*2)*240});
