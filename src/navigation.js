@@ -1,4 +1,4 @@
-import { bounds, road, branches } from './layout.js?v=6.1.0';
+import { bounds, road, branches } from './layout.js?v=6.2.0';
 export function createNavigation(world,ui,campaign,onInteract){
  const $=id=>document.getElementById(id),root=$('navigator'),content=$('map-content'),toggle=$('map-toggle');
  const mapPosition=(x,z)=>({x:(x+bounds.x)/(bounds.x*2)*280,y:(z+bounds.z)/(bounds.z*2)*240});
@@ -23,6 +23,6 @@ export function createNavigation(world,ui,campaign,onInteract){
  $('destination-distance').textContent=target?`${target.building.district}・約 ${Math.ceil(distance/.8)} 步`:'';$('destination-open').hidden=!arrived;$('destination-open').textContent=target&&campaign.unlocked(target.shop.id)?'重訪店家 →':'開啟兩關挑戰 →';
  const e=mapPosition(end.x,end.z);$('map-direction').setAttribute('d',target?`M${m.x} ${m.y}L${e.x} ${e.y}`:'');
  }
- expand(matchMedia('(min-width: 701px)').matches);const exploring=document.body.classList.contains('exploring');update(0,true);if(!exploring)document.body.classList.remove('exploring');root.hidden=false;
+ expand(matchMedia('(min-width: 701px) and (pointer: fine)').matches);const exploring=document.body.classList.contains('exploring');update(0,true);if(!exploring)document.body.classList.remove('exploring');root.hidden=false;
  return{update,select(id){const stop=stops.find(s=>s.shop.id===id);if(stop){choose(stop);update(0,true);}},get target(){return target;}};
 }
