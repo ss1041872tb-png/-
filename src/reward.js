@@ -1,4 +1,4 @@
-import { foodImage } from './food-view.js?v=3.0.0';
+import { foodImage } from './food-view.js?v=4.0.0';
 export function createReward(ui,celebration){
  const panel=document.getElementById('reward'),image=document.getElementById('reward-food');let timer=0,flight=null,generation=0;
  function cancel(){generation++;clearTimeout(timer);flight?.cancel();flight=null;image.style.transform='';panel.dataset.phase='';}

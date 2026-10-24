@@ -18,7 +18,7 @@ for name, path, imports in [
     ('food-models','src/food-models.js',{'../vendor/three.module.js':'three'}),('food-view','src/food-view.js',{'./food-models.js':'food-models'}),('celebration','src/celebration.js',{}),
     ('ui','src/ui.js',{'./food-view.js':'food-view'}),('controls','src/controls.js',{}),
     ('reward','src/reward.js',{'./food-view.js':'food-view'}),
-    ('interior','src/interior.js',{'../vendor/three.module.js':'three','./campaign.js':'campaign'}),
+    ('interior','src/interior.js',{'../vendor/three.module.js':'three','./campaign.js':'campaign','./food-models.js':'food-models'}),
     ('navigation','src/navigation.js',{'./layout.js':'layout'}),
     ('world','src/world.js',{'../vendor/three.module.js':'three','./layout.js':'layout',}),
     ('main','src/main.js',{'./data.js':'data','./ui.js':'ui','./controls.js':'controls','./navigation.js':'navigation','./campaign.js':'campaign','./sound.js':'sound','./reward.js':'reward','./interior.js':'interior','./world.js':'world','./celebration.js':'celebration'}),
@@ -36,7 +36,7 @@ bootstrap = '''
   for (const module of modules) {
     let source = new TextDecoder().decode(Uint8Array.from(atob(module.source), c => c.charCodeAt(0)));
     for (const [specifier, dependency] of Object.entries(module.imports)) {
-      source = source.replaceAll("'" + specifier + "?v=3.0.0'", JSON.stringify(urls[dependency])).replaceAll("'" + specifier + "'", JSON.stringify(urls[dependency]));
+      source = source.replaceAll("'" + specifier + "?v=4.0.0'", JSON.stringify(urls[dependency])).replaceAll("'" + specifier + "'", JSON.stringify(urls[dependency]));
     }
     urls[module.name] = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
   }
@@ -49,8 +49,8 @@ bootstrap = '''
 });
 '''.replace('MODULES', json.dumps(modules, separators=(',', ':')))
 html = (root / 'index.html').read_text()
-html = html.replace('<link rel="stylesheet" href="styles.css?v=3.0.0">', '<style>\n' + (root / 'styles.css').read_text() + '</style>')
-html = html.replace('<script type="module" src="src/main.js?v=3.0.0"></script>', '<script>\n' + bootstrap + '</script>')
+html = html.replace('<link rel="stylesheet" href="styles.css?v=4.0.0">', '<style>\n' + (root / 'styles.css').read_text() + '</style>')
+html = html.replace('<script type="module" src="src/main.js?v=4.0.0"></script>', '<script>\n' + bootstrap + '</script>')
 license_text = (root / 'vendor/THREE-LICENSE.txt').read_text()
 html = '<!-- Single-file local preview. Three.js 0.160.1: ' + license_text.replace('--', '—') + '-->\n' + html
 output = root / 'dist/zhonghe-food-explorer-preview.html'

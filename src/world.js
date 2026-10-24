@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=3.0.0';
+import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=4.0.0';
 
 export function createWorld(container, shops) {
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b8d5d2');scene.fog=new THREE.Fog('#b8d5d2',160,290);
@@ -112,7 +112,7 @@ export function createWorld(container, shops) {
  const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
  function pick(x,y){const rect=renderer.domElement.getBoundingClientRect();mouse.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(scene.children,true).find(h=>{let o=h.object;while(o){if(!o.visible)return false;o=o.parent;}return true;});return hit?.object.userData.shop||null;}
  const look=new THREE.Vector3(),desired=new THREE.Vector3();
- function updateCamera(view,snap=false){const distance=view.distance*(innerWidth<700?1.25:1);look.set(view.follow?player.position.x:0,0,view.follow?player.position.z:0);desired.set(look.x+Math.sin(view.angle)*Math.cos(view.pitch)*distance,Math.sin(view.pitch)*distance,look.z+Math.cos(view.angle)*Math.cos(view.pitch)*distance);if(snap)camera.position.copy(desired);else camera.position.lerp(desired,.1);camera.lookAt(look);camera.updateMatrixWorld();}
+ function updateCamera(view,snap=false){if(view.firstPerson){camera.clearViewOffset();camera.position.copy(player.position).add(new THREE.Vector3(0,1.85,0));camera.lookAt(camera.position.clone().add(new THREE.Vector3(-Math.sin(view.angle),.95-view.pitch,-Math.cos(view.angle))));camera.updateMatrixWorld();return;}camera.setViewOffset(innerWidth,innerHeight,-(view.panX||0),-(view.panY||0),innerWidth,innerHeight);const distance=view.distance*(innerWidth<700?1.25:1);look.set(view.follow?player.position.x:0,0,view.follow?player.position.z:0);desired.set(look.x+Math.sin(view.angle)*Math.cos(view.pitch)*distance,Math.sin(view.pitch)*distance,look.z+Math.cos(view.angle)*Math.cos(view.pitch)*distance);if(snap)camera.position.copy(desired);else camera.position.lerp(desired,.1);camera.lookAt(look);camera.updateMatrixWorld();}
  function setSigns(visited,hovered){buildings.forEach((b,i)=>{const active=hovered?.id===b.shop.id;b.frameMat.emissiveIntensity=active?1.4:questCounts[i]===3?.55:.12;b.signMaterial.color.set(visited.has(b.shop.id)?'#d0edb4':questCounts[i]===3?'#fff4cb':'#d9d5bf');});}
  let powerSaving=false;function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(powerSaving?1:Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);}
  function setPreferences(p){powerSaving=p.powerSaving;renderer.shadowMap.enabled=!powerSaving;renderer.shadowMap.needsUpdate=true;resize();}
