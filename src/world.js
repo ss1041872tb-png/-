@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=6.3.0';
+import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=6.4.0';
 
 export function createWorld(container, shops) {
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b8d5d2');scene.fog=new THREE.Fog('#b8d5d2',160,290);
@@ -115,23 +115,14 @@ export function createWorld(container, shops) {
  function setDestination(id){const b=buildings.find(b=>b.shop.id===id);marker.visible=!!b;if(b){const p=questCounts[id-1]===3?b.entry:b.approach;marker.position.set(p.x,0,p.z);}}
  const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
  function pick(x,y){const rect=renderer.domElement.getBoundingClientRect();mouse.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(scene.children,true).find(h=>{let o=h.object;while(o){if(!o.visible)return false;o=o.parent;}return true;});return hit?.object.userData.shop||null;}
- // Coarse building volumes make camera avoidance cheap and stable on phones.
- // Decorative props, NPCs and traffic should never trigger a sudden close-up.
- const cameraBlockers=obstacles.filter(o=>o.w>1.5&&o.d>1.5).map(o=>{const mesh=new THREE.Mesh(boxGeo);mesh.position.set(o.x,4.75,o.z);mesh.scale.set(o.w*2,9.5,o.d*2);mesh.rotation.y=o.yaw;mesh.updateMatrixWorld();return mesh;});
  const look=new THREE.Vector3(),desired=new THREE.Vector3();
  function updateCamera(view,snap=false){
-  const p=player.position;p.y=groundHeight(p.x,p.z)-.105;player.visible=!view.firstPerson;
+  const p=player.position;p.y=groundHeight(p.x,p.z)-.105;player.visible=!view.firstPerson;if(view.follow)player.rotation.y=view.angle+Math.PI;
   camera.fov=view.firstPerson?Math.max(45,Math.min(90,75/(view.zoom||1))):Math.max(24,Math.min(85,48/(view.zoom||1)));camera.near=.06;camera.clearViewOffset();camera.updateProjectionMatrix();
   if(view.firstPerson){player.rotation.y=view.angle+Math.PI;camera.position.set(p.x,groundHeight(p.x,p.z)+1.85,p.z);const pitch=view.lookPitch||0;camera.lookAt(camera.position.clone().add(new THREE.Vector3(-Math.sin(view.angle)*Math.cos(pitch),Math.sin(pitch),-Math.cos(view.angle)*Math.cos(pitch))));camera.updateMatrixWorld();return;}
   const distance=view.distance*(innerWidth<700?1.18:1);look.set(view.follow?p.x:0,view.follow?p.y+1.1:0,view.follow?p.z:0);desired.set(look.x+Math.sin(view.angle)*Math.cos(view.pitch)*distance,look.y+Math.sin(view.pitch)*distance,look.z+Math.cos(view.angle)*Math.cos(view.pitch)*distance);
-  if(view.follow){
-   const vector=new THREE.Vector3(),wallRay=new THREE.Raycaster();let hit;
-   function obstruction(){vector.copy(desired).sub(look);wallRay.set(look,vector.clone().normalize());wallRay.near=.25;wallRay.far=vector.length();return wallRay.intersectObjects(cameraBlockers,false)[0];}
-   hit=obstruction();
-   // Raise above a tight alley before shortening the view; keep a readable town scale.
-   if(hit&&hit.distance<distance*.7){const pitch=Math.max(view.pitch,1.25);desired.set(look.x+Math.sin(view.angle)*Math.cos(pitch)*distance,look.y+Math.sin(pitch)*distance,look.z+Math.cos(view.angle)*Math.cos(pitch)*distance);hit=obstruction();}
-   if(hit){vector.copy(desired).sub(look).normalize();desired.copy(look).addScaledVector(vector,Math.max(12,hit.distance-.25));}
-  }
+  // A fixed elevated orbit stays above the town. Never auto-change pitch or
+  // distance as the view sweeps across buildings: that caused the angle jumps.
   camera.position.copy(desired);camera.lookAt(look);camera.updateMatrixWorld();
  }
  function setSigns(visited,hovered){buildings.forEach((b,i)=>{const active=hovered?.id===b.shop.id;b.frameMat.emissiveIntensity=active?1.4:questCounts[i]===3?.55:.12;b.signMaterial.color.set(visited.has(b.shop.id)?'#d0edb4':questCounts[i]===3?'#fff4cb':'#d9d5bf');});}

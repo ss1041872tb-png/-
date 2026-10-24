@@ -1,4 +1,4 @@
-import { createFoodView, foodImage } from './food-view.js?v=6.3.0';
+import { createFoodView, foodImage } from './food-view.js?v=6.4.0';
 export function createUI(shops, onPause, onPreferences = () => {}, services = {}) {
   const $ = id => document.getElementById(id);
   const foodView=createFoodView();
