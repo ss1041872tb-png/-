@@ -1,12 +1,12 @@
-import { createArcade } from './arcade.js?v=6.0.0';
-import { createCelebration } from './celebration.js?v=6.0.0';
-import { shops } from './data.js?v=6.0.0';
-import { createUI } from './ui.js?v=6.0.0';
-import { createControls } from './controls.js?v=6.0.0';
-import { createNavigation } from './navigation.js?v=6.0.0';
-import { createCampaign } from './campaign.js?v=6.0.0';
-import { createSound } from './sound.js?v=6.0.0';
-import { createReward } from './reward.js?v=6.0.0';
+import { createArcade } from './arcade.js?v=6.1.0';
+import { createCelebration } from './celebration.js?v=6.1.0';
+import { shops } from './data.js?v=6.1.0';
+import { createUI } from './ui.js?v=6.1.0';
+import { createControls } from './controls.js?v=6.1.0';
+import { createNavigation } from './navigation.js?v=6.1.0';
+import { createCampaign } from './campaign.js?v=6.1.0';
+import { createSound } from './sound.js?v=6.1.0';
+import { createReward } from './reward.js?v=6.1.0';
 const loading=document.getElementById('loading');
 function fail(message){loading.hidden=true;document.getElementById('error').hidden=false;document.getElementById('error-message').textContent=message;}
 document.getElementById('retry').addEventListener('click',()=>location.reload());
@@ -16,7 +16,7 @@ const ui=createUI(shops,paused=>{controls?.setPaused(paused||!graphicsAvailable)
 const celebration=createCelebration(sound,ui.preferences),reward=createReward(ui,celebration);
 const timeout=setTimeout(()=>fail('載入時間較長，請確認網站檔案完整並重新載入。'),20000);
 try{
- const {createWorld}=await import('./world.js?v=6.0.0');const world=createWorld(document.getElementById('world'),shops);worldInstance=world;world.setPreferences(ui.preferences);arcade=createArcade(campaign,ui,sound,reward);
+ const {createWorld}=await import('./world.js?v=6.1.0');const world=createWorld(document.getElementById('world'),shops);worldInstance=world;world.setPreferences(ui.preferences);arcade=createArcade(campaign,ui,sound,reward);
  function nearestDoor(){const p=world.player.position;return world.buildings.map(b=>({b,distance:Math.hypot(p.x-b.entry.x,p.z-b.entry.z)})).filter(o=>o.distance<3.4).sort((a,b)=>a.distance-b.distance)[0];}
  function interact(){const door=nearestDoor();if(door){if(campaign.unlocked(door.b.shop.id))ui.showShop(door.b.shop,false);else arcade.open(door.b.shop);}}
  controls=createControls(world,{select:requestShop,interact});controls.setPaused(ui.paused);navigation=createNavigation(world,ui,campaign,requestShop);
@@ -28,7 +28,18 @@ try{
  let previous=performance.now(),elapsed=0,lastTraffic=0,lastDoor=0,lastAction='';
  function animate(now){requestAnimationFrame(animate);if(ui.preferences.powerSaving&&now-previous<1000/30)return;const dt=Math.min((now-previous)/1000,.04);previous=now;elapsed+=dt;
   if(!document.hidden&&graphicsAvailable){const keys=controls.keys;let x=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),z=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));let didMove=false;
-   if(!ui.paused&&(x||z)){const n=Math.hypot(x,z),m=world.camera.matrixWorld.elements,rn=Math.hypot(m[0],m[2])||1,rx=m[0]/rn,rz=m[2]/rn,speed=7,dx=(x*rx-z*rz)/n*dt*speed,dz=(x*rz+z*rx)/n*dt*speed;x=dx;z=dz;const p=world.player.position,oldX=p.x,oldZ=p.z;const clear=(nx,nz)=>world.canStand(nx,nz);if(clear(p.x+x,p.z))p.x+=x;if(clear(p.x,p.z+z))p.z+=z;didMove=p.x!==oldX||p.z!==oldZ;world.player.rotation.y=Math.atan2(x,z);if(didMove)sound.play('step');}
+   if(!ui.paused&&(x||z)){
+    // Turn the character and camera together; reverse never flips the character.
+    controls.view.follow=true;controls.view.panX=0;controls.view.panY=0;
+    controls.view.angle-=x*dt*2.1;
+    const heading=controls.view.angle+Math.PI;world.player.rotation.y=heading;
+    if(z){const p=world.player.position,oldX=p.x,oldZ=p.z,step=-z*dt*7;
+     const dx=Math.sin(heading)*step,dz=Math.cos(heading)*step;
+     if(world.canStand(p.x+dx,p.z))p.x+=dx;
+     if(world.canStand(p.x,p.z+dz))p.z+=dz;
+     didMove=p.x!==oldX||p.z!==oldZ;if(didMove)sound.play('step');
+    }
+   }
    world.walk(world.player,didMove&&!ui.preferences.reducedMotion,elapsed);
    if(!ui.paused){const door=nearestDoor();doorHint.hidden=true;if(!door){lastDoor=0;}else if(lastDoor!==door.b.shop.id){lastDoor=door.b.shop.id;if(!campaign.unlocked(door.b.shop.id))arcade.open(door.b.shop);}}
    navigation.update(elapsed);
