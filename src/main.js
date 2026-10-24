@@ -1,12 +1,12 @@
-import { createArcade } from './arcade.js?v=5.0.0';
-import { createCelebration } from './celebration.js?v=5.0.0';
-import { shops } from './data.js?v=5.0.0';
-import { createUI } from './ui.js?v=5.0.0';
-import { createControls } from './controls.js?v=5.0.0';
-import { createNavigation } from './navigation.js?v=5.0.0';
-import { createCampaign } from './campaign.js?v=5.0.0';
-import { createSound } from './sound.js?v=5.0.0';
-import { createReward } from './reward.js?v=5.0.0';
+import { createArcade } from './arcade.js?v=6.0.0';
+import { createCelebration } from './celebration.js?v=6.0.0';
+import { shops } from './data.js?v=6.0.0';
+import { createUI } from './ui.js?v=6.0.0';
+import { createControls } from './controls.js?v=6.0.0';
+import { createNavigation } from './navigation.js?v=6.0.0';
+import { createCampaign } from './campaign.js?v=6.0.0';
+import { createSound } from './sound.js?v=6.0.0';
+import { createReward } from './reward.js?v=6.0.0';
 const loading=document.getElementById('loading');
 function fail(message){loading.hidden=true;document.getElementById('error').hidden=false;document.getElementById('error-message').textContent=message;}
 document.getElementById('retry').addEventListener('click',()=>location.reload());
@@ -16,7 +16,7 @@ const ui=createUI(shops,paused=>{controls?.setPaused(paused||!graphicsAvailable)
 const celebration=createCelebration(sound,ui.preferences),reward=createReward(ui,celebration);
 const timeout=setTimeout(()=>fail('載入時間較長，請確認網站檔案完整並重新載入。'),20000);
 try{
- const {createWorld}=await import('./world.js?v=5.0.0');const world=createWorld(document.getElementById('world'),shops);worldInstance=world;world.setPreferences(ui.preferences);arcade=createArcade(campaign,ui,sound,reward);
+ const {createWorld}=await import('./world.js?v=6.0.0');const world=createWorld(document.getElementById('world'),shops);worldInstance=world;world.setPreferences(ui.preferences);arcade=createArcade(campaign,ui,sound,reward);
  function nearestDoor(){const p=world.player.position;return world.buildings.map(b=>({b,distance:Math.hypot(p.x-b.entry.x,p.z-b.entry.z)})).filter(o=>o.distance<3.4).sort((a,b)=>a.distance-b.distance)[0];}
  function interact(){const door=nearestDoor();if(door){if(campaign.unlocked(door.b.shop.id))ui.showShop(door.b.shop,false);else arcade.open(door.b.shop);}}
  controls=createControls(world,{select:requestShop,interact});controls.setPaused(ui.paused);navigation=createNavigation(world,ui,campaign,requestShop);
