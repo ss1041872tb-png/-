@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=6.1.0';
+import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=6.2.0';
 
 export function createWorld(container, shops) {
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b8d5d2');scene.fog=new THREE.Fog('#b8d5d2',160,290);
@@ -10,9 +10,9 @@ export function createWorld(container, shops) {
  const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,350);
  scene.add(new THREE.HemisphereLight('#fff0d2','#73948b',2));
  const sun=new THREE.DirectionalLight('#ffedc3',2.6);sun.position.set(-45,80,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-80,right:80,top:75,bottom:-75,far:200});sun.shadow.normalBias=.06;scene.add(sun);
- const materials=new Map(),boxGeo=new THREE.BoxGeometry(1,1,1),sphereGeo=new THREE.IcosahedronGeometry(1,1);
+ const surfaces=[];const materials=new Map(),boxGeo=new THREE.BoxGeometry(1,1,1),sphereGeo=new THREE.IcosahedronGeometry(1,1);
  function mat(color){if(!materials.has(color))materials.set(color,new THREE.MeshStandardMaterial({color,roughness:.85}));return materials.get(color);}
- function box(w,h,d,color,x,y,z,parent=scene){const m=new THREE.Mesh(boxGeo,typeof color==='string'?mat(color):color);m.scale.set(w,h,d);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
+ function box(w,h,d,color,x,y,z,parent=scene){const m=new THREE.Mesh(boxGeo,typeof color==='string'?mat(color):color);m.scale.set(w,h,d);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);if(h<=.4&&y<.6&&y>-.6&&w>1&&d>.3)surfaces.push(m);return m;}
  function ball(r,color,x,y,z,parent=scene){const m=new THREE.Mesh(sphereGeo,mat(color));m.scale.setScalar(r);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m;}
  const obstacles=[];
  function obstacle(x,z,w,d,yaw=0){obstacles.push({x,z,w:w/2,d:d/2,yaw});}
@@ -27,7 +27,7 @@ export function createWorld(container, shops) {
    if(i){const n=i*2;indices.push(n-2,n,n-1,n-1,n,n+1);}
   }
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geometry.setIndex(indices);geometry.computeVertexNormals();
-  const mesh=new THREE.Mesh(geometry,mat(color));mesh.receiveShadow=true;scene.add(mesh);
+  const mesh=new THREE.Mesh(geometry,mat(color));mesh.receiveShadow=true;scene.add(mesh);surfaces.push(mesh);
  }
  function drawRoad(path){ribbon(path,10.4,.1,'#d8cbb0');ribbon(path,6.8,.15,'#657b78');let carry=0;for(let i=1;i<path.length;i++){const a=path[i-1],b=path[i],dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz);for(let t=carry;t<len;t+=4.5){box(1.3,.018,.1,'#f3d578',a[0]+dx*t/len,.18,a[1]+dz*t/len).rotation.y=-Math.atan2(dz,dx);}carry=(carry-len)%4.5;if(carry<0)carry+=4.5;}}
  drawRoad(road);branches.forEach(drawRoad);
@@ -103,7 +103,11 @@ export function createWorld(container, shops) {
  let questCounts=Array(10).fill(3);
  function setQuestProgress(counts){questCounts=counts;gates.forEach((gate,i)=>{if(gate.count===counts[i])return;gate.count=counts[i];gate.barrier.visible=counts[i]<3;gate.planks.forEach(m=>m.visible=true);gate.flags.forEach((m,n)=>m.material=mat(n<counts[i]?'#83b571':'#edc979'));});}
  function staticClear(x,z,r=-.22){if(Math.abs(x)>bounds.x-1||Math.abs(z)>bounds.z-1)return false;if(obstacles.some(o=>{const p=toLocal(o,x,z);return Math.abs(p.x)<o.w+r&&Math.abs(p.z)<o.d+r;}))return false;for(let i=0;i<lots.length;i++){const p=toLocal(lots[i],x,z);if(Math.abs(p.x)<5&&p.z>5.45-r&&p.z<7.15+r&&(questCounts[i]<3||Math.abs(p.x)>1.75-r))return false;}return true;}
- function canStand(x,z,r=-.22){return staticClear(x,z,r);}
+ function canStand(x,z,r=-.22){if(!staticClear(x,z,r))return false;if(r>0){if(vehicles.some(v=>{const p=toLocal({x:v.g.position.x,z:v.g.position.z,yaw:v.g.rotation.y},x,z);return Math.abs(p.x)<(v.type==='car'?.95:.45)+r&&Math.abs(p.z)<(v.type==='car'?1.75:.85)+r;}))return false;if(npcs.some(n=>Math.hypot(x-n.g.position.x,z-n.g.position.z)<.6))return false;}return true;}
+ const floorRay=new THREE.Raycaster(new THREE.Vector3(),new THREE.Vector3(0,-1,0),0,2);
+ function groundHeight(x,z){floorRay.ray.origin.set(x,1,z);const hit=floorRay.intersectObjects(surfaces,false)[0];return hit?hit.point.y:-.175;}
+ function ensureSafePosition(){const p=player.position;if(canStand(p.x,p.z,.28))return;const start=p.clone();for(let r=.3;r<=7;r+=.3)for(let n=0;n<24;n++){const a=-Math.PI/2+n/24*Math.PI*2,x=start.x+Math.cos(a)*r,z=start.z+Math.sin(a)*r;if(canStand(x,z,.28)){p.set(x,groundHeight(x,z)-.105,z);return;}}p.set(spawn.x,groundHeight(spawn.x,spawn.z)-.105,spawn.z);}
+
  function walk(g,moving,t,phase=0){const swing=moving?Math.sin(t*9+phase)*.5:0;for(const l of g.userData.limbs){l.leg.rotation.x=swing*l.side;l.arm.rotation.x=-swing*l.side*.75;}g.userData.torso.position.y=1.37+(moving?Math.abs(Math.sin(t*9+phase))*.035:0);}
  function updateNPCs(dt,t){for(const n of npcs){if(n.stationary){n.g.userData.limbs[0].arm.rotation.z=Math.sin(t*1.5+n.phase)*.1;continue;}const next=roadAt(n.t+dt*1.55,2.9),blocked=!staticClear(next.x,next.z,.28)||Math.hypot(next.x-player.position.x,next.z-player.position.z)<1.2||npcs.some(o=>o!==n&&Math.hypot(next.x-o.g.position.x,next.z-o.g.position.z)<1);if(!blocked){n.t+=dt*1.55;n.g.position.set(next.x,.08,next.z);}const delta=Math.atan2(Math.sin(next.yaw-n.g.rotation.y),Math.cos(next.yaw-n.g.rotation.y));n.g.rotation.y+=delta*Math.min(1,dt*9);walk(n.g,!blocked,t,n.phase);}}
  function updateTraffic(dt){for(const v of vehicles){const next=roadAt(v.t+dt*v.speed,-1.1);if(Math.hypot(next.x-player.position.x,next.z-player.position.z)<3||vehicles.some(o=>o!==v&&Math.hypot(next.x-o.g.position.x,next.z-o.g.position.z)<4.5))continue;v.t+=dt*v.speed;v.g.position.set(next.x,.05,next.z);v.g.rotation.y+=Math.atan2(Math.sin(next.yaw-v.g.rotation.y),Math.cos(next.yaw-v.g.rotation.y))*Math.min(1,dt*7);}}
@@ -112,10 +116,17 @@ export function createWorld(container, shops) {
  const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
  function pick(x,y){const rect=renderer.domElement.getBoundingClientRect();mouse.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(scene.children,true).find(h=>{let o=h.object;while(o){if(!o.visible)return false;o=o.parent;}return true;});return hit?.object.userData.shop||null;}
  const look=new THREE.Vector3(),desired=new THREE.Vector3();
- function updateCamera(view,snap=false){if(view.follow)player.rotation.y=view.angle+Math.PI;camera.fov=Math.max(18,Math.min(85,48/(view.zoom||1)));camera.updateProjectionMatrix();if(view.firstPerson){camera.setViewOffset(innerWidth,innerHeight,-(view.panX||0),-(view.panY||0),innerWidth,innerHeight);camera.position.copy(player.position).add(new THREE.Vector3(0,1.85,0));camera.lookAt(camera.position.clone().add(new THREE.Vector3(-Math.sin(view.angle),.95-view.pitch,-Math.cos(view.angle))));camera.updateMatrixWorld();return;}camera.setViewOffset(innerWidth,innerHeight,-(view.panX||0),-(view.panY||0),innerWidth,innerHeight);const distance=view.distance*(innerWidth<700?1.25:1);look.set(view.follow?player.position.x:0,0,view.follow?player.position.z:0);desired.set(look.x+Math.sin(view.angle)*Math.cos(view.pitch)*distance,Math.sin(view.pitch)*distance,look.z+Math.cos(view.angle)*Math.cos(view.pitch)*distance);if(snap||view.follow)camera.position.copy(desired);else camera.position.lerp(desired,.1);camera.lookAt(look);camera.updateMatrixWorld();}
+ function updateCamera(view,snap=false){
+  const p=player.position;p.y=groundHeight(p.x,p.z)-.105;player.visible=!view.firstPerson;
+  camera.fov=view.firstPerson?Math.max(45,Math.min(90,75/(view.zoom||1))):Math.max(24,Math.min(85,48/(view.zoom||1)));camera.near=.06;camera.clearViewOffset();camera.updateProjectionMatrix();
+  if(view.firstPerson){player.rotation.y=view.angle+Math.PI;camera.position.set(p.x,groundHeight(p.x,p.z)+1.85,p.z);const pitch=view.lookPitch||0;camera.lookAt(camera.position.clone().add(new THREE.Vector3(-Math.sin(view.angle)*Math.cos(pitch),Math.sin(pitch),-Math.cos(view.angle)*Math.cos(pitch))));camera.updateMatrixWorld();return;}
+  const distance=view.distance*(innerWidth<700?1.18:1);look.set(view.follow?p.x:0,view.follow?p.y+1.1:0,view.follow?p.z:0);desired.set(look.x+Math.sin(view.angle)*Math.cos(view.pitch)*distance,look.y+Math.sin(view.pitch)*distance,look.z+Math.cos(view.angle)*Math.cos(view.pitch)*distance);
+  if(view.follow){scene.updateMatrixWorld(true);const vector=desired.clone().sub(look),length=vector.length(),wallRay=new THREE.Raycaster(look,vector.normalize(),.25,length);const hit=wallRay.intersectObjects(scene.children,true).find(h=>{let o=h.object;while(o){if(o===player||!o.visible)return false;o=o.parent;}return true;});if(hit){desired.copy(look).addScaledVector(vector,Math.max(.35,hit.distance-.25));if(hit.distance<1.5)player.visible=false;}}
+  camera.position.copy(desired);camera.lookAt(look);camera.updateMatrixWorld();
+ }
  function setSigns(visited,hovered){buildings.forEach((b,i)=>{const active=hovered?.id===b.shop.id;b.frameMat.emissiveIntensity=active?1.4:questCounts[i]===3?.55:.12;b.signMaterial.color.set(visited.has(b.shop.id)?'#d0edb4':questCounts[i]===3?'#fff4cb':'#d9d5bf');});}
  let powerSaving=false;function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(powerSaving?1:Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);}
  function setPreferences(p){powerSaving=p.powerSaving;renderer.shadowMap.enabled=!powerSaving;renderer.shadowMap.needsUpdate=true;resize();}
  setQuestProgress(questCounts);
- return {scene,renderer,camera,player,playerMarker,npcs,vehicles,buildings,signMeshes,canStand,staticClear,pick,walk,updateNPCs,updateTraffic,updateCamera,setSigns,setPreferences,resize,setDestination,destinationMarker:marker,setQuestProgress,spawn};
+ return {scene,renderer,camera,player,playerMarker,npcs,vehicles,buildings,signMeshes,canStand,staticClear,pick,walk,updateNPCs,updateTraffic,updateCamera,setSigns,setPreferences,resize,setDestination,destinationMarker:marker,setQuestProgress,spawn,groundHeight,ensureSafePosition};
 }
