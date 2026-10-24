@@ -1,6 +1,6 @@
 export function createControls(world, callbacks) {
   const canvas = world.renderer.domElement, keys = new Set();
-  const view = { angle: .48, pitch: .95, distance: 136, follow: false, firstPerson:false, panMode:true,panX:0,panY:0,zoom:1 };
+  const view = { angle: .48, pitch: .95, distance: 136, follow: false, firstPerson:false, panMode:false,panX:0,panY:0,zoom:1 };
   let pointer = null, hovered = null, paused = false;
   const pointers = new Map();
   let gesture = false, lastPinch = 0;
@@ -38,7 +38,7 @@ export function createControls(world, callbacks) {
       gesture = true; pointer = null; lastPinch = pinchDistance();
       hovered = null; hoverLabel.hidden = true; return;
     }
-    pointer = { id: e.pointerId, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, moved: false, rotate:e.pointerType==='touch'?!view.panMode:e.button===1, button:e.button };
+    pointer = { id: e.pointerId, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, moved: false, rotate:e.pointerType==='touch'?false:e.button===0, touch:e.pointerType==='touch',path:0,turn:0,heading:null,curve:false,lastSample:{x:e.clientX,y:e.clientY},initial:{angle:view.angle,panX:view.panX||0,panY:view.panY||0}, button:e.button };
     canvas.focus({ preventScroll: true }); canvas.style.cursor = 'grabbing';
   });
   canvas.addEventListener('pointermove', e => {
@@ -53,8 +53,12 @@ export function createControls(world, callbacks) {
     if (pointer?.id === e.pointerId) {
       const dx = e.clientX - pointer.x, dy = e.clientY - pointer.y;
       if (Math.hypot(e.clientX - pointer.startX, e.clientY - pointer.startY) > 6) pointer.moved = true;
+      if(pointer.touch){const sx=e.clientX-pointer.lastSample.x,sy=e.clientY-pointer.lastSample.y,length=Math.hypot(sx,sy);if(length>4){const heading=Math.atan2(sy,sx);if(pointer.heading!==null)pointer.turn+=Math.atan2(Math.sin(heading-pointer.heading),Math.cos(heading-pointer.heading));pointer.heading=heading;pointer.path+=length;pointer.lastSample={x:e.clientX,y:e.clientY};if(!pointer.curve&&pointer.path>55&&Math.abs(pointer.turn)>2.7&&Math.hypot(e.clientX-pointer.startX,e.clientY-pointer.startY)/pointer.path<.9){pointer.curve=true;pointer.rotationBase=pointer.turn;}}}
       if (pointer.moved) {
+        if(pointer.touch&&pointer.curve){view.panX+=(pointer.initial.panX-view.panX)*.35;view.panY+=(pointer.initial.panY-view.panY)*.35;view.angle=pointer.initial.angle-(pointer.turn-pointer.rotationBase);}
+        else {
         if(!pointer.rotate){view.panX=Math.max(-innerWidth*.6,Math.min(innerWidth*.6,(view.panX||0)+dx));view.panY=Math.max(-innerHeight*.6,Math.min(innerHeight*.6,(view.panY||0)+dy));}else{view.angle -= dx * .005; view.pitch = Math.max(.48, Math.min(1.2, view.pitch + dy * .004));}
+        }
         hovered = null; hoverLabel.hidden = true;
       }
       pointer.x = e.clientX; pointer.y = e.clientY;
@@ -69,6 +73,7 @@ export function createControls(world, callbacks) {
     }
   });
   function releasePointer(e) {
+    if(pointer?.id===e.pointerId&&pointer.curve){view.panX=pointer.initial.panX;view.panY=pointer.initial.panY;}
     pointers.delete(e.pointerId);
     if (pointer?.id === e.pointerId) pointer = null;
     if (pointers.size < 2) lastPinch = 0;
@@ -103,7 +108,6 @@ export function createControls(world, callbacks) {
   });
   document.getElementById('start-adventure').addEventListener('click',focusPlayer);
   document.getElementById('camera-mode').addEventListener('click',e=>{view.firstPerson=!view.firstPerson;view.follow=true;clear();e.currentTarget.textContent=view.firstPerson?'切回俯視':'第一人稱';e.currentTarget.setAttribute('aria-pressed',String(view.firstPerson));});
-  document.getElementById('pan-mode').addEventListener('click',e=>{view.panMode=!view.panMode;e.currentTarget.textContent=view.panMode?'觸控平移':'觸控旋轉';e.currentTarget.setAttribute('aria-pressed',String(view.panMode));});
   document.getElementById('center-camera').addEventListener('click',()=>{view.panX=0;view.panY=0;});
   return { keys, view, clear, focusPlayer, get hovered() { return hovered; }, setPaused(value) { paused = value; clear(); } };
 }

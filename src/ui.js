@@ -1,9 +1,9 @@
-import { createFoodView, foodImage } from './food-view.js?v=4.1.0';
+import { createFoodView, foodImage } from './food-view.js?v=5.0.0';
 export function createUI(shops, onPause, onPreferences = () => {}, services = {}) {
   const $ = id => document.getElementById(id);
   const foodView=createFoodView();
   const drawer = $('drawer'), journal = $('journal'), help = $('help');
-  const panels = [drawer, journal, help, $('reward')];
+  const panels = [drawer, journal, help, $('reward'), $('arcade')];
   const preferences = { powerSaving: false, reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches };
   const preferencesKey = 'zhonghe-food-preferences-v1';
   try {
@@ -34,7 +34,7 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     $('journal-toggle').setAttribute('aria-label', `美食收集箱，已收藏 ${visited.size} / 10 道美食`);
     for (const { button, state, shop, picture } of buttons) {
       const collected = visited.has(shop.id); button.classList.toggle('collected', collected);picture.hidden=!collected;
-      state.textContent = collected ? '✓ 已收藏' : `◇ ${services.campaign.count(shop.id)} / 2 物品・前往尋寶`;
+      state.textContent = collected ? '✓ 已收藏' : `◇ ${services.campaign.count(shop.id)} / 2 關・前往挑戰`;
     }
     $('storage-notice').hidden = services.campaign.storageAvailable;
     $('task-count').textContent = services.campaign.stages.reduce((a,b)=>a+b,0);
@@ -68,7 +68,7 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     document.body.classList.add('exploring');
     const isNew = collect && !visited.has(shop.id);
     if (collect) updateProgress();
-    $('stamp').textContent = collect ? '✓ 已收集招牌美食' : visited.has(shop.id)?'✓ 已收藏招牌美食':'資料預覽・入店尋寶獲得美食';
+    $('stamp').textContent = collect ? '✓ 已收集招牌美食' : visited.has(shop.id)?'✓ 已收藏招牌美食':'資料預覽・門口闖關獲得美食';
     $('shop-name').textContent = shop.name; $('category').textContent = shop.category;
     $('description').textContent = shop.description; $('address').textContent = shop.address;
     $('shop-number').textContent = `TASTY STOP ${String(shop.id).padStart(2, '0')} / 10`;
