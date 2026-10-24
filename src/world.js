@@ -1,12 +1,12 @@
 import * as THREE from '../vendor/three.module.js';
-import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=4.1.0';
+import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=5.0.0';
 
 export function createWorld(container, shops) {
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b8d5d2');scene.fog=new THREE.Fog('#b8d5d2',160,290);
  const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;
- renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','3D 彎巷冒險；WASD 移動，走到門口進店尋寶，拖曳旋轉視角。');container.append(renderer.domElement);
+ renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','3D 彎巷冒險；WASD 移動，走到門口門口闖關，拖曳旋轉視角。');container.append(renderer.domElement);
  const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,350);
  scene.add(new THREE.HemisphereLight('#fff0d2','#73948b',2));
  const sun=new THREE.DirectionalLight('#ffedc3',2.6);sun.position.set(-45,80,40);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-80,right:80,top:75,bottom:-75,far:200});sun.shadow.normalBias=.06;scene.add(sun);
@@ -57,7 +57,7 @@ export function createWorld(container, shops) {
   const signMaterial=new THREE.MeshBasicMaterial({map:label(shop.name,shop.id)}),faces=[];
   for(const side of [-1,1]){const face=new THREE.Mesh(new THREE.PlaneGeometry(9.4,2.2),signMaterial);face.position.set(0,h+2.05,side*.2);face.rotation.y=side===1?0:Math.PI;face.userData.shop=shop;g.add(face);faces.push(face);signMeshes.push(face);}
   signMeshes.push(frame);
-  const checkpoint=new THREE.Mesh(new THREE.PlaneGeometry(2.8,.8),new THREE.MeshBasicMaterial({map:label(`${shop.id} 入店尋寶`,shop.id,'#9c6935'),side:THREE.DoubleSide}));checkpoint.position.set(2.1,1.9,10.5);checkpoint.userData.shop=shop;g.add(checkpoint);box(.12,1.8,.12,'#77684c',2.1,.9,10.5,g);
+  const checkpoint=new THREE.Mesh(new THREE.PlaneGeometry(2.8,.8),new THREE.MeshBasicMaterial({map:label(`${shop.id} 門口闖關`,shop.id,'#9c6935'),side:THREE.DoubleSide}));checkpoint.position.set(2.1,1.9,10.5);checkpoint.userData.shop=shop;g.add(checkpoint);box(.12,1.8,.12,'#77684c',2.1,.9,10.5,g);
   buildings.push({g,x,z,h,lot,shop,frame,frameMat,signMaterial,faces,approach:localPoint(lot,0,10.5),entry:localPoint(lot,0,4.8),district:lot.district});
  });
  // Small residential blocks fill the pockets between the zigzag alleys.
