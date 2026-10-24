@@ -1,48 +1,114 @@
+"""Real browser regressions for stable steering, mobile input and visible pipe paths."""
 import os,json,math
+from pathlib import Path
 from playwright.sync_api import sync_playwright
-BASE=os.getenv('EXPLORER_URL','http://127.0.0.1:8014');passed=[]
-def check(n,v=True):
- assert v,n
- passed.append(n);print('PASS',n,flush=True)
+BASE=os.getenv('EXPLORER_URL','http://127.0.0.1:8015')
+SINGLE=os.getenv('EXPLORER_SINGLE')=='1'
+passed=[]
+def check(name,value=True):
+ assert value,name
+ passed.append(name);print('PASS',name,flush=True)
+def start(page):
+ if SINGLE:
+  page.evaluate("()=>{window.URLSearchParams=class extends URLSearchParams{has(n){return n==='test'||super.has(n)}}}")
+  page.set_content((Path(__file__).resolve().parents[1]/'dist/zhonghe-food-explorer-preview.html').read_text(),wait_until='load')
+ else:page.goto(BASE+'/?test',wait_until='networkidle')
+ page.wait_for_function('document.body.dataset.ready==="true"');page.locator('#start-adventure').click()
+def place(page,angle=0):
+ page.evaluate('(a)=>{const e=__explorer;e.controls.clear();e.world.player.position.set(0,0,36);e.controls.view.angle=a;e.world.updateCamera(e.controls.view,true);window.start=e.world.player.position.clone();window.yaw=a}',angle)
+def open_pipe(page,touch=False):
+ page.evaluate('const w=__explorer.world,p=w.buildings[5].entry;w.player.position.set(p.x,0,p.z)')
+ page.wait_for_selector('#arcade:not([hidden])');getattr(page.locator('#arcade-begin'),'tap' if touch else 'click')()
+ page.wait_for_selector('[data-pipe="3"]')
+def solve_pipe(page,touch=False):
+ state=page.evaluate('__explorer.arcade.activeState')
+ for i in state['route']:
+  for _ in range(4):
+   if page.locator('#arcade-next').count():return
+   ports=page.evaluate('(i)=>__explorer.arcade.activeState.ports[i]',i)
+   if sorted(ports)==sorted(state['required'][i]):break
+   getattr(page.locator(f'[data-pipe="{i}"]'),'tap' if touch else 'click')()
+ page.wait_for_selector('#arcade-next')
 with sync_playwright() as p:
- b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']);page=b.new_page(viewport={'width':1280,'height':900});errors=[];page.on('pageerror',lambda e:errors.append(str(e)));page.goto(BASE+'/?test',wait_until='networkidle');page.wait_for_function('document.body.dataset.ready==="true"');page.locator('#start-adventure').click();page.evaluate('__explorer.ui.preferences.reducedMotion=true')
- # Sustained input must travel straight even while the camera turns behind the avatar.
- for angle in [0,math.pi/2,math.pi,math.pi*1.5]:
-  for key,local in [('w',(0,-1)),('d',(1,0)),('s',(0,1)),('a',(-1,0))]:
-   page.evaluate('(a)=>{const e=__explorer;e.controls.clear();e.world.player.position.set(0,0,36);e.controls.view.angle=a;e.world.updateCamera(e.controls.view,true);window.start=e.world.player.position.clone();window.yaw=a}',angle)
-   dx=local[0]*math.cos(angle)+local[1]*math.sin(angle);dz=-local[0]*math.sin(angle)+local[1]*math.cos(angle)
-   page.locator('#world canvas').focus();page.keyboard.down(key);page.wait_for_function('__explorer.world.player.position.distanceTo(start)>1.5');page.keyboard.up(key)
-   check(f'{key} follows heading without spiraling at {angle:.2f}',page.evaluate('(v)=>{const e=__explorer,p=e.world.player.position,dx=p.x-start.x,dz=p.z-start.z,target=Math.atan2(v.x,v.z)-Math.PI,delta=Math.atan2(Math.sin(e.controls.view.angle-target),Math.cos(e.controls.view.angle-target));return dx*v.x+dz*v.z>1&&Math.abs(dx*v.z-dz*v.x)<.08&&Math.abs(delta)<.01}',{'x':dx,'z':dz}))
- check('Default chase view is farther away',page.evaluate('__explorer.controls.view.distance===36&&__explorer.world.camera.position.distanceTo(__explorer.world.player.position)>25'))
- # Normal mode should ease the turn, and the camera should track the translated player.
- page.evaluate('const e=__explorer;e.controls.clear();e.ui.preferences.reducedMotion=false;e.world.player.position.set(0,0,36);e.controls.view.angle=0;window.start=e.world.player.position.clone()');page.keyboard.down('d');page.wait_for_function('__explorer.controls.view.angle<-.1');check('Turn eases instead of snapping',page.evaluate('__explorer.controls.view.angle> -Math.PI/2+.1'));page.wait_for_function('Math.abs(__explorer.controls.view.angle+Math.PI/2)<.07');page.keyboard.up('d');check('Camera reaches moving character heading',page.evaluate('__explorer.world.player.position.x>1&&Math.abs(__explorer.world.player.position.z-36)<.1'));page.evaluate('__explorer.ui.preferences.reducedMotion=true')
- # Several narrow-alley and door positions should keep a readable camera distance.
- check('Door approaches keep at least 12 units of camera space',page.evaluate('()=>{const e=__explorer;return e.world.buildings.every(b=>{e.world.player.position.set(b.approach.x,0,b.approach.z);e.controls.view.angle=b.lot.yaw; e.world.updateCamera(e.controls.view,true);return e.world.camera.position.distanceTo(e.world.player.position)>12})}'))
- # First-person repair: switch while intentionally overlapping a building edge.
- page.evaluate('const e=__explorer,b=e.world.buildings[0];e.world.player.position.set(b.x,0,b.z);');page.locator('#camera-mode').click();page.wait_for_function('!__explorer.world.player.visible');check('First person hides own head and marker',page.evaluate('!__explorer.world.player.visible'))
- check('Unsafe first-person spawn moves to nearest clear point',page.evaluate('const w=__explorer.world;w.canStand(w.player.position.x,w.player.position.z,.28)'))
- check('Eyes stay above actual surface',page.evaluate('const w=__explorer.world,p=w.player.position;Math.abs(w.camera.position.y-w.groundHeight(p.x,p.z)-1.85)<.001&&Math.abs(p.y+.105-w.groundHeight(p.x,p.z))<.001'))
- page.evaluate('const e=__explorer,b=e.world.buildings[1];e.world.player.position.set(b.x+5.2,0,b.z);e.controls.view.angle=Math.PI/2;e.world.updateCamera(e.controls.view,true)')
- # Use a registered building at a side edge; collision prevents walking into its interior.
- page.locator('#world canvas').focus();page.keyboard.down('w');page.wait_for_timeout(500);page.keyboard.up('w');check('First-person collision keeps eye out of solid geometry',page.evaluate('const w=__explorer.world;w.canStand(w.player.position.x,w.player.position.z,.28)'))
- page.evaluate('__explorer.world.ensureSafePosition()');page.locator('#camera-mode').click();page.wait_for_function('__explorer.world.player.visible');check('Third-person avatar returns after mode switch')
- page.evaluate('__explorer.world.player.position.set(0,0,36)');angle=page.evaluate('__explorer.controls.view.angle');page.mouse.move(700,650);page.mouse.down();page.mouse.move(820,700,steps=6);page.mouse.up();check('Mouse drag changes view without gesture guessing',page.evaluate('__explorer.controls.view.angle')!=angle)
- # Real two-finger mobile input: joystick stays held while right hand looks around.
- m=b.new_page(viewport={'width':390,'height':844},has_touch=True,is_mobile=True);m.on('pageerror',lambda e:errors.append(str(e)));m.goto(BASE+'/?test',wait_until='networkidle');m.wait_for_function('document.body.dataset.ready==="true"');m.locator('#start-adventure').tap();m.evaluate('__explorer.world.player.position.set(0,0,36);window.a=__explorer.controls.view.angle;window.start=__explorer.world.player.position.clone()');r=m.locator('#joystick').bounding_box();cx=r['x']+r['width']/2;cy=r['y']+r['height']/2;cdp=m.context.new_cdp_session(m)
- def event(kind,pts):cdp.send('Input.dispatchTouchEvent',{'type':kind,'touchPoints':[{'x':x,'y':y,'id':i} for i,x,y in pts]});m.wait_for_timeout(40)
- # A held right stick must turn the camera, then keep walking straight in world space.
- m.evaluate('const e=__explorer;e.ui.preferences.reducedMotion=true;e.controls.clear();e.controls.view.angle=0;e.world.player.position.set(0,0,36);window.start=e.world.player.position.clone()')
- event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx+38,cy)]);m.wait_for_function('__explorer.world.player.position.x>start.x+1');check('Mobile camera follows a joystick turn without spiraling',m.evaluate('const e=__explorer;Math.abs(e.controls.view.angle+Math.PI/2)<.01&&Math.abs(e.world.player.position.z-start.z)<.08'));event('touchEnd',[])
- m.evaluate('const e=__explorer;e.controls.clear();e.controls.view.angle=0;e.world.player.position.set(0,0,36);window.start=e.world.player.position.clone()')
- event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx,cy+38)]);m.wait_for_function('__explorer.world.player.position.z>start.z+1');check('Mobile camera also follows a turn back',m.evaluate('Math.abs(Math.sin(__explorer.controls.view.angle))<.01&&Math.cos(__explorer.controls.view.angle)<-.99'));event('touchEnd',[])
- m.evaluate('const e=__explorer;e.controls.clear();e.controls.view.angle=0;e.world.player.position.set(0,0,36);window.start=e.world.player.position.clone();window.a=e.controls.view.angle')
- event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx,cy-38)]);m.wait_for_function('__explorer.world.player.position.distanceTo(start)>.3');check('Left stick moves character',m.evaluate('__explorer.controls.stick.z<-.5'))
- event('touchStart',[(1,cx,cy-38),(2,240,420)]);event('touchMove',[(1,cx,cy-38),(2,300,460)]);m.wait_for_function('__explorer.controls.view.angle!==a&&__explorer.controls.stick.z<-.5');check('Right hand turns view while left stick keeps moving',m.evaluate('__explorer.controls.view.angle!==a&&__explorer.controls.stick.z<-.5'));m.evaluate('window.manual=__explorer.controls.view.angle');m.wait_for_timeout(250);check('Manual look has priority over automatic follow',m.evaluate('Math.abs(__explorer.controls.view.angle-manual)<.001'));event('touchEnd',[]);m.wait_for_function('__explorer.controls.stick.x===0&&__explorer.controls.stick.z===0');check('Release stops joystick and look pointers',m.evaluate('__explorer.controls.stick.x===0&&__explorer.controls.stick.z===0'));m.evaluate('window.start=__explorer.world.player.position.clone()');m.wait_for_timeout(220);check('No stuck movement after touch release',m.evaluate('__explorer.world.player.position.distanceTo(start)<.01'))
- m.evaluate('window.a=__explorer.controls.view.angle');event('touchStart',[(2,220,410)]);event('touchMove',[(2,280,450)]);event('touchEnd',[]);m.wait_for_function('__explorer.controls.view.angle!==a');check('Any one-finger look drag rotates, never pans',m.evaluate('__explorer.controls.view.angle!==a&&__explorer.controls.view.panX===0&&__explorer.controls.view.panY===0'))
- m.evaluate('window.zoom=__explorer.controls.view.zoom');event('touchStart',[(2,180,420),(3,270,420)]);event('touchMove',[(2,150,420),(3,300,420)]);event('touchEnd',[]);m.wait_for_function('__explorer.controls.view.zoom>zoom');check('Two-finger pinch zoom remains intuitive',m.evaluate('__explorer.controls.view.zoom>zoom'))
- m.locator('#help-toggle').tap();check('Opening modal clears stick and keys',m.evaluate('__explorer.controls.stick.x===0&&__explorer.controls.stick.z===0&&__explorer.controls.keys.size===0'));m.locator('#help-done').tap()
- for w,h in [(320,568),(844,390)]:m.set_viewport_size({'width':w,'height':h});check(f'Joystick remains usable {w}x{h}',m.locator('#joystick').is_visible() and m.evaluate('document.documentElement.scrollWidth===innerWidth'))
- m.locator('#camera-mode').tap();m.wait_for_function('__explorer.controls.view.firstPerson');check('Mobile first-person button stays reachable',m.evaluate('!__explorer.world.player.visible'));m.locator('#camera-mode').tap();
- m.set_viewport_size({'width':390,'height':844});m.locator('#center-camera').tap();check('Recenter restores distant view behind the avatar',m.evaluate('const e=__explorer;Math.abs(Math.sin(e.controls.view.angle-e.world.player.rotation.y+Math.PI))<.001&&e.controls.view.distance===36&&e.controls.view.zoom===1'))
- m.screenshot(path='/tmp/chase-mobile.png');page.screenshot(path='/tmp/chase-desktop.png')
- check('No runtime errors',not errors);print(json.dumps({'passed':len(passed),'errors':errors}));b.close()
+ b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader'])
+ page=b.new_page(viewport={'width':1280,'height':900});errors=[];external=[]
+ page.on('pageerror',lambda e:errors.append(str(e)))
+ if SINGLE:page.on('request',lambda r:external.append(r.url) if r.url.startswith(('http:','https:')) else None)
+ start(page);page.evaluate('__explorer.ui.preferences.reducedMotion=true')
+ for angle in [0,math.pi/2,math.pi-.01,-math.pi+.01]:
+  for key in ['w','s']:
+   place(page,angle);page.locator('#world canvas').focus();page.keyboard.down(key);page.wait_for_function('__explorer.world.player.position.distanceTo(start)>.7');page.keyboard.up(key)
+   check(f'{key} keeps heading at {angle:.2f}',page.evaluate('(forward)=>{const e=__explorer,p=e.world.player.position,dx=p.x-start.x,dz=p.z-start.z;return Math.abs(e.controls.view.angle-yaw)<1e-8&&(-dx*Math.sin(yaw)-dz*Math.cos(yaw))*(forward?1:-1)>.6}',key=='w'))
+ # Track actual rendered yaw/pitch/distance while switching left and right.
+ for reduced in [False,True]:
+  place(page,math.pi-.01)
+  page.evaluate('(v)=>{__explorer.ui.preferences.reducedMotion=v;window.samples=[];window.record=true;function tick(){const e=__explorer,w=e.world,v=e.controls.view,dx=w.camera.position.x-w.player.position.x,dy=w.camera.position.y-w.player.position.y-1.1,dz=w.camera.position.z-w.player.position.z;samples.push({a:v.angle,p:Math.atan2(dy,Math.hypot(dx,dz)),d:Math.hypot(dx,dy,dz)});if(record)requestAnimationFrame(tick)}requestAnimationFrame(tick)}',reduced)
+  for key in ['a','d','a','d']:
+   before=page.evaluate('__explorer.controls.view.angle');page.keyboard.down(key)
+   page.wait_for_function('(v)=>(__explorer.controls.view.angle-v.a)*v.sign>.12',arg={'a':before,'sign':1 if key=='a' else -1});page.keyboard.up(key)
+  page.evaluate('window.record=false')
+  check(f'Left/right has no angle jumps (reduced motion {reduced})',page.evaluate('samples.every((s,i)=>!i||Math.abs(s.a-samples[i-1].a)<=.059)'))
+  check(f'Turning stays in place and keeps pitch/distance ({reduced})',page.evaluate('const e=__explorer; e.world.player.position.distanceTo(start)<.01&&samples.every(s=>Math.abs(s.p-.8)<1e-6&&Math.abs(s.d-36)<1e-6)'))
+  page.evaluate('window.stopped=__explorer.controls.view.angle');page.wait_for_timeout(1100)
+  check(f'No delayed automatic turn after release ({reduced})',page.evaluate('__explorer.controls.view.angle===stopped'))
+ # Sweep all shop approaches through a full circle; previous building avoidance jumped here.
+ check('All ten shop approaches retain fixed camera geometry',page.evaluate('()=>{const e=__explorer,w=e.world,v=e.controls.view;for(const b of w.buildings){w.player.position.set(b.approach.x,0,b.approach.z);for(let n=0;n<36;n++){v.angle=n*Math.PI/18;w.updateCamera(v,true);const dx=w.camera.position.x-w.player.position.x,dy=w.camera.position.y-w.player.position.y-1.1,dz=w.camera.position.z-w.player.position.z;if(Math.abs(Math.hypot(dx,dy,dz)-36)>1e-6||Math.abs(Math.atan2(dy,Math.hypot(dx,dz))-.8)>1e-6)return false;}}return true}'))
+ place(page);page.mouse.move(700,600);page.mouse.down();page.mouse.move(800,620,steps=5);page.mouse.up()
+ check('Mouse look turns player and camera together',page.evaluate('const e=__explorer;Math.abs(e.controls.view.angle)> .1&&Math.abs(e.world.player.rotation.y-e.controls.view.angle-Math.PI)<1e-6'))
+ page.mouse.wheel(0,-100);check('Mouse wheel still zooms',page.evaluate('__explorer.controls.view.zoom>1'))
+ page.locator('#center-camera').click();check('Reset restores distant view',page.evaluate('__explorer.controls.view.zoom===1&&__explorer.controls.view.distance===36&&__explorer.controls.view.pitch===.8'))
+ # First-person standing and steering use the same heading, without rendering our own head.
+ page.evaluate('const w=__explorer.world,b=w.buildings[0];w.player.position.set(b.x,0,b.z)');page.locator('#camera-mode').click();page.wait_for_function('__explorer.controls.view.firstPerson')
+ check('First person hides avatar and relocates unsafe positions',page.evaluate('const w=__explorer.world;!w.player.visible&&w.canStand(w.player.position.x,w.player.position.z,.28)'))
+ check('Feet and eyes stay on the actual ground',page.evaluate('const w=__explorer.world,p=w.player.position,h=w.groundHeight(p.x,p.z);Math.abs(p.y+.105-h)<1e-6&&Math.abs(w.camera.position.y-h-1.85)<1e-6'))
+ place(page);page.keyboard.down('a');page.wait_for_function('__explorer.controls.view.angle>.12');page.keyboard.up('a')
+ check('First-person left turn also keeps position',page.evaluate('__explorer.world.player.position.distanceTo(start)<.01'))
+ page.evaluate('const e=__explorer,b=e.world.buildings[1];e.world.player.position.set(b.x+5.2,0,b.z);e.controls.view.angle=Math.PI/2');page.keyboard.down('w');page.wait_for_timeout(500);page.keyboard.up('w')
+ check('First-person wall protection remains enabled',page.evaluate('const w=__explorer.world;w.canStand(w.player.position.x,w.player.position.z,.28)'))
+ page.locator('#camera-mode').click();page.wait_for_function('__explorer.world.player.visible')
+ # Play the real pipe puzzle using only tile clicks, not campaign completion shortcuts.
+ open_pipe(page)
+ check('Pipe uses nine continuous diagrams without arrow pairs',page.locator('.pipe-tile svg').count()==9 and page.locator('.pipe-tile').evaluate_all('(es)=>es.every(e=>!/[↑→↓←]/.test(e.textContent)&&e.querySelectorAll("path").length===3)'))
+ check('Water inlet and outlet are visibly labelled',page.locator('.pipe-terminal.source').inner_text()=='💧進水口' and page.locator('.pipe-terminal.sink').inner_text()=='出水口🥤')
+ original=page.evaluate('__explorer.arcade.activeState.ports[0]');page.locator('[data-pipe="0"]').focus();page.keyboard.press('Space')
+ check('Keyboard activation rotates one pipe clockwise',page.evaluate('__explorer.arcade.activeState.ports[0]')==[(d+1)%4 for d in original])
+ for _ in range(4):
+  if sorted(page.evaluate('__explorer.arcade.activeState.ports[3]'))==[0,3]:break
+  page.locator('[data-pipe="3"]').click()
+ check('Connected pipe segments show flowing blue water',page.locator('.pipe-tile.wet').count()>0 and '已接通' in page.locator('.pipe-status').inner_text())
+ check('Partial connections do not award progress',page.evaluate('__explorer.campaign.count(6)===0'))
+ if not SINGLE:
+  # Closing the incomplete puzzle must clear controls and leave saved progress untouched.
+  page.locator('#arcade-close').click();check('Closing puzzle clears live game state',page.evaluate('__explorer.arcade.activeState===null&&__explorer.controls.keys.size===0'))
+  page.locator('#interact').click();page.locator('#arcade-begin').click()
+ solve_pipe(page);check('Real pipe solution completes first stage only',page.evaluate('__explorer.campaign.count(6)===1&&__explorer.campaign.visited.size===0'))
+ if not SINGLE:
+  page.reload(wait_until='networkidle');page.wait_for_function('document.body.dataset.ready==="true"')
+  check('Saved pipe progress survives reload without altering other stores',page.evaluate('__explorer.campaign.stages.every((v,i)=>v===(i===5?1:0))'))
+ if SINGLE:
+  check('Single-file preview makes zero external requests',not external)
+ else:
+  m=b.new_page(viewport={'width':390,'height':844},has_touch=True,is_mobile=True);m.on('pageerror',lambda e:errors.append(str(e)));start(m);place(m);m.evaluate('__explorer.ui.preferences.reducedMotion=true')
+  r=m.locator('#joystick').bounding_box();cx=r['x']+r['width']/2;cy=r['y']+r['height']/2;cdp=m.context.new_cdp_session(m)
+  def event(kind,points):
+   cdp.send('Input.dispatchTouchEvent',{'type':kind,'touchPoints':[{'id':i,'x':x,'y':y} for i,x,y in points]});m.wait_for_timeout(40)
+  event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx+38,cy)]);m.wait_for_function('__explorer.controls.view.angle<-.15');event('touchEnd',[])
+  check('Phone horizontal stick turns in place',m.evaluate('__explorer.world.player.position.distanceTo(start)<.01&&__explorer.controls.view.angle>-.8'))
+  m.evaluate('window.yaw=__explorer.controls.view.angle');event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx,cy+38)]);m.wait_for_function('__explorer.world.player.position.distanceTo(start)>.5');event('touchEnd',[])
+  check('Phone backward movement does not flip the camera',m.evaluate('__explorer.controls.view.angle===yaw'))
+  place(m);event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx+25,cy-25)]);m.wait_for_function('__explorer.world.player.position.distanceTo(start)>.4&&__explorer.controls.view.angle<-.1')
+  check('Phone diagonal stick walks and steers simultaneously',m.evaluate('__explorer.controls.stick.x>.3&&__explorer.controls.stick.z<-.3'))
+  event('touchEnd',[]);place(m);event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx,cy-38)]);m.wait_for_function('__explorer.world.player.position.distanceTo(start)>.3')
+  event('touchStart',[(1,cx,cy-38),(2,230,400)]);event('touchMove',[(1,cx,cy-38),(2,290,430)]);m.wait_for_function('__explorer.controls.view.angle<-.1&&__explorer.controls.stick.z<-.5')
+  check('Phone right-hand look works while left hand walks',m.evaluate('__explorer.controls.stick.z<-.5'))
+  event('touchEnd',[]);m.wait_for_function('__explorer.controls.stick.z===0&&__explorer.controls.stick.x===0');m.evaluate('window.start=__explorer.world.player.position.clone();window.yaw=__explorer.controls.view.angle');m.wait_for_timeout(1100)
+  check('Releasing phone controls stops movement and all automatic turning',m.evaluate('__explorer.world.player.position.distanceTo(start)<.01&&__explorer.controls.view.angle===yaw'))
+  m.evaluate('window.zoom=__explorer.controls.view.zoom');event('touchStart',[(2,180,420),(3,270,420)]);event('touchMove',[(2,150,420),(3,300,420)]);event('touchEnd',[]);m.wait_for_function('__explorer.controls.view.zoom>zoom');check('Phone pinch zoom remains available')
+  m.locator('#help-toggle').tap();check('Modal clears stick and keys',m.evaluate('__explorer.controls.keys.size===0&&__explorer.controls.stick.z===0'));m.locator('#help-done').tap()
+  for w,h in [(320,568),(844,390),(390,844)]:
+   m.set_viewport_size({'width':w,'height':h});check(f'Mobile controls fit {w}x{h}',m.locator('#joystick').is_visible() and m.evaluate('document.documentElement.scrollWidth===innerWidth'))
+  open_pipe(m,True)
+  check('Phone pipe tiles have readable touch targets',m.locator('[data-pipe="0"]').bounding_box()['width']>=48)
+  m.screenshot(path='/tmp/stable-pipe-mobile.png');solve_pipe(m,True);check('Actual touch solves pipe puzzle on phone',m.evaluate('__explorer.campaign.count(6)===1'))
+  m.locator('#arcade-close').tap();m.locator('#center-camera').tap();m.screenshot(path='/tmp/stable-controls-mobile.png')
+ check('No browser runtime errors',not errors);print(json.dumps({'passed':len(passed),'errors':errors}));b.close()
