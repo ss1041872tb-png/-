@@ -1108,3 +1108,5 @@ body.reduce-effects .reward-panel[data-phase="show"] #reward-food,body.reduce-ef
 body:has(#inspection:not([hidden])) #hunt-hud,body:has(#inspection:not([hidden])) .camera-toolbar { visibility:hidden; }
 body.panel-open #furniture-labels,body.panel-open .camera-toolbar { visibility:hidden; }
 @media(max-width:700px){.hunt-hud{max-height:36dvh;overflow:auto;}.furniture-label{font-size:18px;padding:7px;}.camera-toolbar{bottom:140px;}.camera-toolbar button{font-size:13px;padding:8px;}#inspection{top:92px;}#inspection strong{font-size:21px;}#inspection p{font-size:18px;} }
+
+body:has(#inspection:not([hidden])) .camera-toolbar { visibility:visible; }

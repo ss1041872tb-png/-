@@ -1,6 +1,6 @@
 export function createControls(world, callbacks) {
   const canvas = world.renderer.domElement, keys = new Set();
-  const view = { angle: .48, pitch: .95, distance: 136, follow: false, firstPerson:false, panMode:false,panX:0,panY:0 };
+  const view = { angle: .48, pitch: .95, distance: 136, follow: false, firstPerson:false, panMode:true,panX:0,panY:0,zoom:1 };
   let pointer = null, hovered = null, paused = false;
   const pointers = new Map();
   let gesture = false, lastPinch = 0;
@@ -29,7 +29,7 @@ export function createControls(world, callbacks) {
   window.addEventListener('blur', clear);
   document.addEventListener('visibilitychange', () => { if (document.hidden) clear(); });
   canvas.addEventListener('pointerdown', e => {
-    if (paused || e.button !== 0) return;
+    if (paused || ![0,1].includes(e.button)) return;
     e.preventDefault();
     document.body.classList.add('exploring');
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -38,7 +38,7 @@ export function createControls(world, callbacks) {
       gesture = true; pointer = null; lastPinch = pinchDistance();
       hovered = null; hoverLabel.hidden = true; return;
     }
-    pointer = { id: e.pointerId, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, moved: false };
+    pointer = { id: e.pointerId, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, moved: false, rotate:e.pointerType==='touch'?!view.panMode:e.button===1, button:e.button };
     canvas.focus({ preventScroll: true }); canvas.style.cursor = 'grabbing';
   });
   canvas.addEventListener('pointermove', e => {
@@ -46,7 +46,7 @@ export function createControls(world, callbacks) {
     if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size >= 2) {
       const distance = pinchDistance();
-      if (lastPinch > 0 && distance > 0) view.distance = clampZoom(view.distance * lastPinch / distance);
+      if (lastPinch > 0 && distance > 0) view.zoom = Math.max(.55,Math.min(3,(view.zoom||1)*distance/lastPinch));
       lastPinch = distance; return;
     }
     if (gesture) return;
@@ -54,7 +54,7 @@ export function createControls(world, callbacks) {
       const dx = e.clientX - pointer.x, dy = e.clientY - pointer.y;
       if (Math.hypot(e.clientX - pointer.startX, e.clientY - pointer.startY) > 6) pointer.moved = true;
       if (pointer.moved) {
-        if(view.panMode){view.panX=Math.max(-innerWidth*.6,Math.min(innerWidth*.6,(view.panX||0)+dx));view.panY=Math.max(-innerHeight*.6,Math.min(innerHeight*.6,(view.panY||0)+dy));}else{view.angle -= dx * .005; view.pitch = Math.max(.48, Math.min(1.2, view.pitch + dy * .004));}
+        if(!pointer.rotate){view.panX=Math.max(-innerWidth*.6,Math.min(innerWidth*.6,(view.panX||0)+dx));view.panY=Math.max(-innerHeight*.6,Math.min(innerHeight*.6,(view.panY||0)+dy));}else{view.angle -= dx * .005; view.pitch = Math.max(.48, Math.min(1.2, view.pitch + dy * .004));}
         hovered = null; hoverLabel.hidden = true;
       }
       pointer.x = e.clientX; pointer.y = e.clientY;
@@ -75,17 +75,18 @@ export function createControls(world, callbacks) {
     if (!pointers.size) gesture = false;
   }
   canvas.addEventListener('pointerup', e => {
-    const clicked = pointer?.id === e.pointerId && !pointer.moved && !gesture;
+    const clicked = pointer?.id === e.pointerId && pointer.button===0 && !pointer.moved && !gesture;
     releasePointer(e);
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
     canvas.style.cursor = pointers.size ? 'grabbing' : 'grab';
     if (clicked && !paused) { const shop = world.pick(e.clientX, e.clientY); if (shop) callbacks.select(shop); }
   });
+  canvas.addEventListener('auxclick',e=>e.preventDefault());
   canvas.addEventListener('pointercancel', clear);
   canvas.addEventListener('lostpointercapture', releasePointer);
   canvas.addEventListener('pointerleave', () => { hovered = null; hoverLabel.hidden = true; });
   canvas.addEventListener('wheel', e => {
-    if (paused) return; document.body.classList.add('exploring'); e.preventDefault(); view.distance = clampZoom(view.distance + e.deltaY * .035);
+    if (paused) return; document.body.classList.add('exploring'); e.preventDefault(); view.zoom = Math.max(.55,Math.min(3,(view.zoom||1)*Math.exp(-e.deltaY*.0015)));
   }, { passive: false });
   document.querySelectorAll('#mobile button').forEach(button => {
     const release = () => { keys.delete(button.dataset.key); button.classList.remove('held'); };
@@ -96,12 +97,13 @@ export function createControls(world, callbacks) {
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, release);
   });
   document.getElementById('reset-view').addEventListener('click', () => {
-    clear(); document.body.classList.remove('exploring'); Object.assign(view, { angle: .48, pitch: .95, distance: 136, follow: false,panX:0,panY:0,firstPerson:false });
+    clear(); document.body.classList.remove('exploring'); Object.assign(view, { angle: .48, pitch: .95, distance: 136, follow: false,panX:0,panY:0,firstPerson:false,zoom:1 });
+    document.getElementById('camera-mode').textContent='第一人稱';document.getElementById('camera-mode').setAttribute('aria-pressed','false');
     world.player.position.set(world.spawn.x, 0, world.spawn.z); world.updateCamera(view, true);
   });
   document.getElementById('start-adventure').addEventListener('click',focusPlayer);
   document.getElementById('camera-mode').addEventListener('click',e=>{view.firstPerson=!view.firstPerson;view.follow=true;clear();e.currentTarget.textContent=view.firstPerson?'切回俯視':'第一人稱';e.currentTarget.setAttribute('aria-pressed',String(view.firstPerson));});
-  document.getElementById('pan-mode').addEventListener('click',e=>{view.panMode=!view.panMode;e.currentTarget.textContent=view.panMode?'平移中':'旋轉中';e.currentTarget.setAttribute('aria-pressed',String(view.panMode));});
+  document.getElementById('pan-mode').addEventListener('click',e=>{view.panMode=!view.panMode;e.currentTarget.textContent=view.panMode?'觸控平移':'觸控旋轉';e.currentTarget.setAttribute('aria-pressed',String(view.panMode));});
   document.getElementById('center-camera').addEventListener('click',()=>{view.panX=0;view.panY=0;});
   return { keys, view, clear, focusPlayer, get hovered() { return hovered; }, setPaused(value) { paused = value; clear(); } };
 }
