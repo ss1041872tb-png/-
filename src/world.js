@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=6.6.0';
+import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=6.7.0';
 
 export function createWorld(container, shops) {
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b8d5d2');scene.fog=new THREE.Fog('#b8d5d2',160,290);
@@ -117,19 +117,12 @@ export function createWorld(container, shops) {
  function updateNPCs(dt,t){for(const n of npcs){if(n.stationary){n.g.userData.limbs[0].arm.rotation.z=Math.sin(t*1.5+n.phase)*.1;continue;}const next=roadAt(n.t+dt*1.55,2.9),blocked=!staticClear(next.x,next.z,.28)||Math.hypot(next.x-player.position.x,next.z-player.position.z)<1.2||npcs.some(o=>o!==n&&Math.hypot(next.x-o.g.position.x,next.z-o.g.position.z)<1);if(!blocked){n.t+=dt*1.55;n.g.position.set(next.x,.08,next.z);}const delta=Math.atan2(Math.sin(next.yaw-n.g.rotation.y),Math.cos(next.yaw-n.g.rotation.y));n.g.rotation.y+=delta*Math.min(1,dt*9);walk(n.g,!blocked,t,n.phase);}}
  function updateTraffic(dt){for(const v of vehicles){const next=roadAt(v.t+dt*v.speed,-1.1);if(Math.hypot(next.x-player.position.x,next.z-player.position.z)<3||vehicles.some(o=>o!==v&&Math.hypot(next.x-o.g.position.x,next.z-o.g.position.z)<4.5))continue;v.t+=dt*v.speed;v.g.position.set(next.x,.05,next.z);v.g.rotation.y+=Math.atan2(Math.sin(next.yaw-v.g.rotation.y),Math.cos(next.yaw-v.g.rotation.y))*Math.min(1,dt*7);}}
  let destinationId=null;
- const marker=new THREE.Group();scene.add(marker);const ring=new THREE.Mesh(new THREE.RingGeometry(1.35,1.6,32),new THREE.MeshBasicMaterial({color:'#57f4f0',side:THREE.DoubleSide,transparent:true,opacity:.9,depthWrite:false,toneMapped:false}));ring.rotation.x=-Math.PI/2;ring.raycast=()=>{};marker.add(ring);marker.visible=false;
- function setDestination(id){const b=buildings.find(b=>b.shop.id===id);destinationId=b?.shop.id??null;marker.visible=!!b;if(b)marker.position.set(b.entry.x,groundHeight(b.entry.x,b.entry.z)+.07,b.entry.z);}
- const arrowShape=new THREE.Shape();[[-.6,-.55],[0,.35],[.6,-.55],[.3,-.68],[0,-.22],[-.3,-.68]].forEach(([x,y],i)=>i?arrowShape.lineTo(x,y):arrowShape.moveTo(x,y));arrowShape.closePath();
- const arrowGeo=new THREE.ShapeGeometry(arrowShape),arrowMat=new THREE.MeshBasicMaterial({color:'#6affee',transparent:true,opacity:.9,side:THREE.DoubleSide,depthWrite:false,toneMapped:false}),edgeMat=new THREE.MeshBasicMaterial({color:'#185d63',side:THREE.DoubleSide,depthWrite:false});
- const guide=new THREE.Group();scene.add(guide);guide.visible=false;
- const arrows=new THREE.InstancedMesh(arrowGeo,arrowMat,160),edges=new THREE.InstancedMesh(arrowGeo,edgeMat,160);arrows.count=edges.count=0;arrows.frustumCulled=edges.frustumCulled=false;arrows.raycast=edges.raycast=()=>{};guide.add(edges,arrows);
- const dummy=new THREE.Object3D(),flat=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2),up=new THREE.Vector3(0,1,0);let guidePath=[];
- function setGuidePath(points){guidePath=points.map(p=>({x:p.x,z:p.z}));let n=0,carry=1;for(let i=1;i<points.length&&n<160;i++){const a=points[i-1],b=points[i],dx=b.x-a.x,dz=b.z-a.z,length=Math.hypot(dx,dz);if(length<.01)continue;let at=carry;for(;at<length&&n<160;at+=2.4){const x=a.x+dx*at/length,z=a.z+dz*at/length;dummy.position.set(x,groundHeight(x,z)+.045,z);dummy.quaternion.setFromAxisAngle(up,Math.atan2(-dx,-dz)).multiply(flat);dummy.scale.setScalar(1.35);dummy.updateMatrix();edges.setMatrixAt(n,dummy.matrix);dummy.position.y+=.015;dummy.scale.setScalar(1.07);dummy.updateMatrix();arrows.setMatrixAt(n++,dummy.matrix);}carry=at-length;}arrows.count=edges.count=n;arrows.instanceMatrix.needsUpdate=edges.instanceMatrix.needsUpdate=true;guide.visible=n>0;}
+ function setDestination(id){destinationId=buildings.find(b=>b.shop.id===id)?.shop.id??null;}
  const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
  function pick(x,y){const rect=renderer.domElement.getBoundingClientRect();mouse.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(scene.children,true).find(h=>{let o=h.object;while(o){if(!o.visible)return false;o=o.parent;}return true;});return hit?.object.userData.shop||null;}
  const look=new THREE.Vector3(),desired=new THREE.Vector3();
  function updateCamera(view,snap=false){
-  const p=player.position;p.y=groundHeight(p.x,p.z)-.105;player.visible=!view.firstPerson;playerMarker.scale.setScalar(view.overview?.04:.078);
+  const p=player.position;p.y=groundHeight(p.x,p.z)-.105;player.visible=!view.firstPerson;playerMarker.scale.setScalar(view.overview?.04:.078);if(view.follow)player.rotation.y=view.angle+Math.PI;
   camera.fov=view.firstPerson?Math.max(45,Math.min(90,75/(view.zoom||1))):Math.max(24,Math.min(85,48/(view.zoom||1)));camera.near=.06;if(!view.overview){camera.far=350;scene.fog.near=160;scene.fog.far=290;}camera.clearViewOffset();camera.updateProjectionMatrix();
   if(view.firstPerson){player.rotation.y=view.angle+Math.PI;camera.position.set(p.x,groundHeight(p.x,p.z)+1.85,p.z);const pitch=view.lookPitch||0;camera.lookAt(camera.position.clone().add(new THREE.Vector3(-Math.sin(view.angle)*Math.cos(pitch),Math.sin(pitch),-Math.cos(view.angle)*Math.cos(pitch))));camera.updateMatrixWorld();return;}
   const overviewDistance=Math.max(145,(bounds.x*Math.cos(.48)+bounds.z*Math.sin(.48)+12)/(Math.tan(48*Math.PI/360)*camera.aspect)*1.12);
@@ -138,9 +131,9 @@ export function createWorld(container, shops) {
   // distance as the view sweeps across buildings: that caused the angle jumps.
   camera.position.copy(desired);camera.lookAt(look);camera.updateMatrixWorld();
  }
- function setSigns(visited,hovered,time=0,reduced=false){const pulse=reduced?1:.65+.35*(Math.sin(time*3)+1)/2;arrowMat.opacity=pulse;ring.material.opacity=pulse;buildings.forEach((b,i)=>{const active=hovered?.id===b.shop.id,selected=b.shop.id===destinationId;b.led.visible=selected;b.ledMat.opacity=pulse;b.frameMat.emissive.set(selected?'#39e9ee':'#f2ba4e');b.frameMat.emissiveIntensity=selected?1.5:active?1.4:questCounts[i]===3?.55:.12;b.signMaterial.color.set(selected?'#efffff':visited.has(b.shop.id)?'#d0edb4':questCounts[i]===3?'#fff4cb':'#d9d5bf');});}
+ function setSigns(visited,hovered,time=0,reduced=false){const pulse=reduced?1:.65+.35*(Math.sin(time*3)+1)/2;buildings.forEach((b,i)=>{const active=hovered?.id===b.shop.id,selected=b.shop.id===destinationId;b.led.visible=selected;b.ledMat.opacity=pulse;b.frameMat.emissive.set(selected?'#39e9ee':'#f2ba4e');b.frameMat.emissiveIntensity=selected?1.5:active?1.4:questCounts[i]===3?.55:.12;b.signMaterial.color.set(selected?'#efffff':visited.has(b.shop.id)?'#d0edb4':questCounts[i]===3?'#fff4cb':'#d9d5bf');});}
  let powerSaving=false;function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(powerSaving?1:Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);}
  function setPreferences(p){powerSaving=p.powerSaving;renderer.shadowMap.enabled=!powerSaving;renderer.shadowMap.needsUpdate=true;resize();}
  setQuestProgress(questCounts);
- return {scene,renderer,camera,player,playerMarker,npcs,vehicles,buildings,signMeshes,canStand,staticClear,pick,walk,updateNPCs,updateTraffic,updateCamera,setSigns,setPreferences,resize,setDestination,setGuidePath,destinationMarker:marker,guidance:{group:guide,arrows,material:arrowMat,get path(){return guidePath;}},get destinationId(){return destinationId;},setQuestProgress,spawn,groundHeight,ensureSafePosition};
+ return {scene,renderer,camera,player,playerMarker,npcs,vehicles,buildings,signMeshes,canStand,staticClear,pick,walk,updateNPCs,updateTraffic,updateCamera,setSigns,setPreferences,resize,setDestination,get destinationId(){return destinationId;},setQuestProgress,spawn,groundHeight,ensureSafePosition};
 }
