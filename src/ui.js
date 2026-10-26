@@ -1,4 +1,4 @@
-import { createFoodView, foodImage } from './food-view.js?v=6.4.0';
+import { createFoodView, foodImage } from './food-view.js?v=6.5.0';
 export function createUI(shops, onPause, onPreferences = () => {}, services = {}) {
   const $ = id => document.getElementById(id);
   const foodView=createFoodView();
@@ -14,8 +14,8 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
   document.body.classList.toggle('reduce-effects',preferences.reducedMotion);
   $('power-saving').checked = preferences.powerSaving;
   $('reduced-motion').checked = preferences.reducedMotion;
-  const background = [...document.querySelectorAll('#world, .topbar, .intro, .bottom-bar, #mobile, #navigator, #interact, #hunt-hud, #door-hint, #furniture-labels, #inspection, .camera-toolbar')];
-  const visited = services.campaign.visited;
+  const background = [...document.querySelectorAll('#world, .topbar, .intro, .bottom-bar, #mobile, #navigator, #interact, #hunt-hud, #door-hint, #furniture-labels, #inspection, .camera-toolbar, #overview-hint')];
+  const visited = services.campaign.visited;let selectedShop=null;
   let returnFocus = null, toastTimer;
   function toast(text) {
     $('toast').textContent = text; $('toast').classList.add('visible'); clearTimeout(toastTimer);
@@ -26,7 +26,7 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     const icon = document.createElement('span'); icon.textContent = shop.emoji; const picture=document.createElement('img');picture.src=foodImage(shop.id);picture.alt=shop.tags[0]+'原創 3D 美食';picture.className='collection-food';picture.hidden=true;icon.append(picture);
     const name = document.createElement('div'); name.append(document.createTextNode(shop.name));
     const state = document.createElement('small'); name.append(state); button.append(icon, name);
-    button.addEventListener('click', () => visited.has(shop.id)?showShop(shop,false):services.requestShop(shop)); $('badges').append(button);
+    button.addEventListener('click', () => showShop(shop,false)); $('badges').append(button);
     return { button, state, shop, picture };
   });
   function updateProgress() {
@@ -34,7 +34,7 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     $('journal-toggle').setAttribute('aria-label', `美食收集箱，已收藏 ${visited.size} / 10 道美食`);
     for (const { button, state, shop, picture } of buttons) {
       const collected = visited.has(shop.id); button.classList.toggle('collected', collected);picture.hidden=!collected;
-      state.textContent = collected ? '✓ 已收藏' : `◇ ${services.campaign.count(shop.id)} / 2 關・前往挑戰`;
+      state.textContent = collected ? '✓ 已收藏' : `◇ ${services.campaign.count(shop.id)} / 2 關・查看店家資訊`;
     }
     $('storage-notice').hidden = services.campaign.storageAvailable;
     $('task-count').textContent = services.campaign.stages.reduce((a,b)=>a+b,0);
@@ -65,7 +65,7 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
   }
   function showShop(shop, collect = true) {
     if (collect && !services.campaign.unlocked(shop.id)) { services.requestShop(shop); return; }
-    document.body.classList.add('exploring');
+    document.body.classList.add('exploring');selectedShop=shop;
     const isNew = collect && !visited.has(shop.id);
     if (collect) updateProgress();
     $('stamp').textContent = collect ? '✓ 已收集招牌美食' : visited.has(shop.id)?'✓ 已收藏招牌美食':'資料預覽・門口闖關獲得美食';
@@ -75,10 +75,15 @@ export function createUI(shops, onPause, onPreferences = () => {}, services = {}
     $('image-note').textContent='原創 3D 餐點示意・非店家實拍';
     services.sound.play(isNew ? 'win' : 'click');
     $('tags').replaceChildren(...shop.tags.map(tag => { const span = document.createElement('span'); span.className = 'tag'; span.textContent = tag; return span; }));
-    $('navigation').href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.name + ' ' + shop.address)}`;
+    const query=encodeURIComponent(shop.name+' '+shop.address);
+    $('navigation').href=`https://www.google.com/maps/dir/?api=1&destination=${query}&travelmode=walking`;
+    $('map-listing').href=`https://www.google.com/maps/search/?api=1&query=${query}`;
+    $('web-info').href=`https://www.google.com/search?q=${encodeURIComponent(shop.name+' '+shop.address+' 營業時間 菜單')}`;
+    $('food-reviews').href=`https://www.google.com/search?q=${encodeURIComponent(shop.name+' '+shop.address+' 食記 評價')}`;
     updateProgress(); openPanel(drawer, $('close')); foodView.show(shop,preferences);
     if (isNew) toast(visited.size === 10 ? '🏆 十站達成！獲得「中和美食旅人」成就！' : `✦ 已收藏 ${shop.name} · ${visited.size} / 10`);
   }
+  $('shop-guide').addEventListener('click',()=>{if(selectedShop)services.guideShop(selectedShop);});
   $('close').addEventListener('click', () => close());
   $('journal-close').addEventListener('click', () => close());
   $('help-close').addEventListener('click', () => close());
