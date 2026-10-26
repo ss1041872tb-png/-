@@ -7,7 +7,7 @@
   <meta name="description" content="走進可愛的 3D 微縮街區，探索中和十大美食，挑戰二十個小遊戲，收藏招牌美食。">
   <title>中和食光｜街角遊戲食光</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E🍜%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=6.5.0">
+  <link rel="stylesheet" href="styles.css?v=6.6.0">
 </head>
 <body>
   <noscript><div class="noscript">請啟用 JavaScript 以探索 3D 美食街區。店家資料與操作說明可參閱隨附 README。</div></noscript>
@@ -30,13 +30,13 @@
   <section id="help" class="utility-panel" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
     <div class="section-heading"><span><small>MAKE YOURSELF AT HOME</small><h2 id="help-title">小鎮探索指南</h2></span><button id="help-close" class="icon-button" aria-label="關閉探索指南">×</button></div>
     <p class="help-lead">走進十間小店、搜尋二十關挑戰，收藏十道招牌美食。</p>
-    <dl class="help-controls"><div><dt>走進街區</dt><dd>W／↑ 前進、S／↓ 後退；A／← 左轉、D／→ 右轉。手機搖桿上下走路、左右轉向，放開就停。人物與鏡頭一起轉，後退不會自動回頭。</dd></div><div><dt>換個角度</dt><dd>滑鼠左鍵拖曳看方向，滾輪調整遠近。手機右手單指拖曳看方向、雙指縮放。沒有自動補轉或抬高鏡頭；按「重設遠近」恢復預設距離與俯角。</dd></div><div><dt>挑戰好滋味</dt><dd>走到門口自動顯示兩個小遊戲與獎勵餐點。第一關完成會保存，兩關過關就能獲得美食與煙火慶祝；離開未完成的小遊戲，下次重新開始該關。</dd></div><div><dt>找到下一站</dt><dd>展開小地圖、點選店家圓點，會顯示全景與專屬 LED 招牌亮邊。按方向鍵或推動搖桿回到人物視角，跟著地面發光箭頭走到店門口。可直接查看所有店家的資訊與 Google 地圖。地圖是虛構配置；實際出發請使用 Google Maps。</dd></div></dl>
+    <dl class="help-controls"><div><dt>走進街區</dt><dd>WASD／方向鍵直接朝畫面的上、下、左、右移動；手機搖桿推哪裡就往哪裡走。人物面向行進方向，鏡頭只跟隨位置，不會隨人物旋轉。斜向移動速度相同，放開就停。</dd></div><div><dt>換個角度</dt><dd>滑鼠左鍵拖曳看方向，滾輪調整遠近。手機右手單指拖曳看方向、雙指縮放。只有拖曳才會轉動鏡頭，走路時不自動旋轉或上下晃動；按「重設遠近」恢復預設距離與俯角。</dd></div><div><dt>挑戰好滋味</dt><dd>走到門口自動顯示兩個小遊戲與獎勵餐點。第一關完成會保存，兩關過關就能獲得美食與煙火慶祝；離開未完成的小遊戲，下次重新開始該關。</dd></div><div><dt>找到下一站</dt><dd>展開小地圖、點選店家圓點，會顯示全景與專屬 LED 招牌亮邊。按方向鍵或推動搖桿回到人物視角，跟著地面發光箭頭走到店門口。可直接查看所有店家的資訊與 Google 地圖。地圖是虛構配置；實際出發請使用 Google Maps。</dd></div></dl>
     <div class="preference"><label><span><strong>輕鬆背景音樂</strong><small>原創循環配樂；切換到其他分頁會暫停。</small></span><input id="music-enabled" type="checkbox" checked></label><label><span><strong>音效</strong><small>首次操作後啟用音訊，包含尋物、慶祝音樂與輕鬆配樂。</small></span><input id="sound-enabled" type="checkbox" checked></label><label><span><strong>音量</strong><small>可隨時靜音，關卡不依賴聽覺判斷。</small></span><input id="sound-volume" type="range" min="0" max="0.6" step="0.05" value="0.35" aria-label="音效音量"></label><label><span><strong>省電模式</strong><small>降低解析度、關閉陰影，每秒最多更新 30 次。</small></span><input id="power-saving" type="checkbox"></label><label><span><strong>減少動態</strong><small>暫停 NPC 與人物擺動，視角不再自動緩動。</small></span><input id="reduced-motion" type="checkbox"></label></div>
     <p class="help-note">新版小遊戲進度另存於目前瀏覽器，舊版護照保留。餐點為可旋轉的原創 3D 示意，非店家實拍；店家地址與營業狀態請於出發前確認；橋壽司位於永和區。</p>
     <button id="help-done" class="primary-button">開始探索 →</button>
   </section>
-  <footer class="bottom-bar"><div class="controls"><span class="key-group"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>W/S 前後 · A/D 轉向</span></span><i></i><span>左鍵拖曳 <b>看方向</b></span><span>滾輪 <b>縮放</b></span></div><div class="explore-hint"><span>✦</span> 走到門口 · 玩兩關贏美食</div><div class="view-actions"><button id="sound-toggle" class="view-button" aria-label="關閉音效" aria-pressed="true">🔊</button><button id="help-toggle" class="view-button" aria-label="玩法與設定" aria-haspopup="dialog">? <span>玩法與設定</span></button><button id="reset-view" class="view-button" aria-label="回到起始視角">⌖ <span>重設視角</span></button></div></footer>
-  <div id="mobile" class="mobile-controls" aria-label="左手搖桿移動"><div id="joystick" role="group" aria-label="搖桿上下前後走，左右轉向，放開停止"><span class="joystick-cross">＋</span><span class="joystick-label front">前進</span><span class="joystick-label back">後退</span><span class="joystick-label left">左轉</span><span class="joystick-label right">右轉</span><span id="joystick-thumb"></span></div><small>上下走路 · 左右轉向</small></div><div class="look-touch-hint">右手看方向 · 雙指縮放</div>
+  <footer class="bottom-bar"><div class="controls"><span class="key-group"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>方向移動 · 鏡頭不自轉</span></span><i></i><span>左鍵拖曳 <b>看方向</b></span><span>滾輪 <b>縮放</b></span></div><div class="explore-hint"><span>✦</span> 走到門口 · 玩兩關贏美食</div><div class="view-actions"><button id="sound-toggle" class="view-button" aria-label="關閉音效" aria-pressed="true">🔊</button><button id="help-toggle" class="view-button" aria-label="玩法與設定" aria-haspopup="dialog">? <span>玩法與設定</span></button><button id="reset-view" class="view-button" aria-label="回到起始視角">⌖ <span>重設視角</span></button></div></footer>
+  <div id="mobile" class="mobile-controls" aria-label="左手搖桿移動"><div id="joystick" role="group" aria-label="搖桿直接控制上下左右移動，放開停止"><span class="joystick-cross">＋</span><span class="joystick-label front">往上</span><span class="joystick-label back">往下</span><span class="joystick-label left">往左</span><span class="joystick-label right">往右</span><span id="joystick-thumb"></span></div><small>推哪裡就往哪裡走</small></div><div class="look-touch-hint">右手看方向 · 雙指縮放</div>
   <section id="navigator" class="navigator" aria-label="街區導航" hidden>
     <button id="map-toggle" class="map-toggle" aria-expanded="false" aria-controls="map-content"><span>⌁ 街區小地圖</span><span id="map-chevron" aria-hidden="true">＋</span></button>
     <div id="map-content" hidden>
@@ -64,6 +64,6 @@
   <canvas id="celebration-canvas" aria-hidden="true" hidden></canvas>
   <div id="celebration-banner" role="status" aria-live="polite" hidden></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="src/main.js?v=6.5.0"></script>
+  <script type="module" src="src/main.js?v=6.6.0"></script>
 </body>
 </html>

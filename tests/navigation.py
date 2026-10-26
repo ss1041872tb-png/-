@@ -1,4 +1,4 @@
-"""Browser acceptance: all store links, walkable arrows, overview and slower controls."""
+"""Browser acceptance: all store links, walkable arrows, overview and fixed-view controls."""
 import os,json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -21,11 +21,11 @@ def good_route(page):
 with sync_playwright() as p:
  b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--enable-unsafe-swiftshader','--use-angle=swiftshader']);page=b.new_page(viewport={'width':1280,'height':900});errors=[];external=[];page.on('pageerror',lambda e:errors.append(str(e)))
  if SINGLE:page.on('request',lambda r:external.append(r.url) if r.url.startswith(('http:','https:')) else None)
- start(page);page.evaluate('window.origin=__explorer.world.player.position.clone();window.heading=__explorer.controls.view.angle')
+ start(page);page.evaluate('window.origin=__explorer.world.player.position.clone();window.heading=__explorer.world.player.rotation.y')
  for id in range(1,11):
   choose(page,id)
   check(f'Store {id}: walkable route and exclusive LED border',good_route(page) and page.evaluate('(id)=>__explorer.world.buildings.every(b=>b.led.visible===(b.shop.id===id))',id))
-  check(f'Store {id}: full town overview keeps player location and heading',page.evaluate('const e=__explorer,w=e.world;Math.hypot(w.player.position.x-origin.x,w.player.position.z-origin.z)<1e-6&&!e.controls.view.follow&&!e.controls.view.firstPerson&&Math.abs(w.player.rotation.y-heading-Math.PI)<1e-6&&w.buildings.every(b=>{const p=b.frame.getWorldPosition(w.player.position.clone()).project(w.camera);return Math.abs(p.x)<1&&Math.abs(p.y)<1&&p.z<1})'))
+  check(f'Store {id}: full town overview keeps player location and heading',page.evaluate('const e=__explorer,w=e.world;Math.hypot(w.player.position.x-origin.x,w.player.position.z-origin.z)<1e-6&&!e.controls.view.follow&&!e.controls.view.firstPerson&&Math.abs(w.player.rotation.y-heading)<1e-6&&w.buildings.every(b=>{const p=b.frame.getWorldPosition(w.player.position.clone()).project(w.camera);return Math.abs(p.x)<1&&Math.abs(p.y)<1&&p.z<1})'))
   if page.locator('#map-content').is_hidden():page.locator('#map-toggle').click()
   page.locator('#destination-info').click();page.wait_for_selector('#drawer:not([hidden])')
   check(f'Store {id}: real destination URLs and preview without progress',page.evaluate('(id)=>{const s=__explorer.shops[id-1],dir=new URL(document.getElementById("navigation").href),map=new URL(document.getElementById("map-listing").href),web=new URL(document.getElementById("web-info").href),reviews=new URL(document.getElementById("food-reviews").href);return document.getElementById("shop-name").textContent===s.name&&document.getElementById("address").textContent===s.address&&dir.searchParams.get("destination")===s.name+" "+s.address&&dir.searchParams.get("travelmode")==="walking"&&map.searchParams.get("query")===s.name+" "+s.address&&web.searchParams.get("q").includes(s.address)&&reviews.searchParams.get("q").includes(s.name)&&["navigation","map-listing","web-info","food-reviews"].every(id=>{const a=document.getElementById(id);return a.target==="_blank"&&a.rel.includes("noopener")})&&__explorer.campaign.stages.every(n=>n===0)}',id))
@@ -40,7 +40,7 @@ with sync_playwright() as p:
  page.evaluate('const e=__explorer,original=e.controls.movement;e.controls.movement=(x,z,dt)=>{if(e.controls.keys.has("w"))window.walkTime+=dt;if(e.controls.keys.has("d"))window.turnTime+=dt;return original(x,z,dt)};window.walkTime=0;window.turnTime=0;e.controls.clear();e.controls.view.angle=0;e.world.player.position.set(0,0,36);window.start=e.world.player.position.clone()')
  page.locator('#world canvas').focus();page.keyboard.down('w');page.wait_for_function('walkTime>.2');page.keyboard.up('w')
  check('Third-person walking is now 4.5 units per second',page.evaluate('const p=__explorer.world.player.position;Math.abs(Math.hypot(p.x-start.x,p.z-start.z)/walkTime-4.5)<.001'))
- page.keyboard.down('d');page.wait_for_function('turnTime>.15');page.keyboard.up('d');check('Turning is slower at 1.05 radians per second',page.evaluate('Math.abs(__explorer.controls.view.angle/turnTime+1.05)<.001'))
+ page.evaluate('window.startD=__explorer.world.player.position.clone()');page.keyboard.down('d');page.wait_for_function('turnTime>.15');page.keyboard.up('d');check('D walks right at the retained slow speed without rotating the view',page.evaluate('Math.abs((__explorer.world.player.position.x-startD.x)/turnTime-4.5)<.001&&__explorer.controls.view.angle===0'))
  page.locator('#camera-mode').click();page.evaluate('window.walkTime=0;window.start=__explorer.world.player.position.clone()');page.locator('#world canvas').focus();page.keyboard.down('w');page.wait_for_function('walkTime>.2');page.keyboard.up('w')
  check('First-person walking is now 3.6 units per second',page.evaluate('const p=__explorer.world.player.position;Math.abs(Math.hypot(p.x-start.x,p.z-start.z)/walkTime-3.6)<.001'))
  choose(page,4);page.keyboard.down('ArrowUp');page.wait_for_function('__explorer.controls.view.firstPerson&&__explorer.controls.view.follow');page.keyboard.up('ArrowUp');check('Overview restores the chosen first-person mode',page.evaluate('!__explorer.world.player.visible&&__explorer.world.destinationId===4'))
@@ -54,7 +54,7 @@ with sync_playwright() as p:
  if SINGLE:check('Standalone navigation loads without external requests',not external)
  else:
   page.screenshot(path='/tmp/navigation-overview-desktop.png')
-  m=b.new_page(viewport={'width':390,'height':844},has_touch=True,is_mobile=True);m.on('pageerror',lambda e:errors.append(str(e)));start(m);m.evaluate('window.origin=__explorer.world.player.position.clone();window.heading=__explorer.controls.view.angle')
+  m=b.new_page(viewport={'width':390,'height':844},has_touch=True,is_mobile=True);m.on('pageerror',lambda e:errors.append(str(e)));start(m);m.evaluate('window.origin=__explorer.world.player.position.clone();window.heading=__explorer.world.player.rotation.y')
   choose(m,10,True);check('Phone selection shows full overview and collapses the map',m.locator('#map-content').is_hidden() and m.evaluate('__explorer.world.buildings.every(b=>{const p=b.frame.getWorldPosition(__explorer.world.player.position.clone()).project(__explorer.world.camera);return Math.abs(p.x)<1&&Math.abs(p.y)<1&&p.z<1})'))
   m.screenshot(path='/tmp/navigation-overview-mobile.png')
   r=m.locator('#joystick').bounding_box();cx=r['x']+r['width']/2;cy=r['y']+r['height']/2;cdp=m.context.new_cdp_session(m)

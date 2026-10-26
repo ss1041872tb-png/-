@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=6.5.0';
+import { lots, bounds, spawn, road, branches, roadLength, roadAt, localPoint, toLocal, distanceToRoad } from './layout.js?v=6.6.0';
 
 export function createWorld(container, shops) {
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b8d5d2');scene.fog=new THREE.Fog('#b8d5d2',160,290);
@@ -129,11 +129,11 @@ export function createWorld(container, shops) {
  function pick(x,y){const rect=renderer.domElement.getBoundingClientRect();mouse.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(scene.children,true).find(h=>{let o=h.object;while(o){if(!o.visible)return false;o=o.parent;}return true;});return hit?.object.userData.shop||null;}
  const look=new THREE.Vector3(),desired=new THREE.Vector3();
  function updateCamera(view,snap=false){
-  const p=player.position;p.y=groundHeight(p.x,p.z)-.105;player.visible=!view.firstPerson;playerMarker.scale.setScalar(view.overview?.04:.078);if(view.follow)player.rotation.y=view.angle+Math.PI;
+  const p=player.position;p.y=groundHeight(p.x,p.z)-.105;player.visible=!view.firstPerson;playerMarker.scale.setScalar(view.overview?.04:.078);
   camera.fov=view.firstPerson?Math.max(45,Math.min(90,75/(view.zoom||1))):Math.max(24,Math.min(85,48/(view.zoom||1)));camera.near=.06;if(!view.overview){camera.far=350;scene.fog.near=160;scene.fog.far=290;}camera.clearViewOffset();camera.updateProjectionMatrix();
   if(view.firstPerson){player.rotation.y=view.angle+Math.PI;camera.position.set(p.x,groundHeight(p.x,p.z)+1.85,p.z);const pitch=view.lookPitch||0;camera.lookAt(camera.position.clone().add(new THREE.Vector3(-Math.sin(view.angle)*Math.cos(pitch),Math.sin(pitch),-Math.cos(view.angle)*Math.cos(pitch))));camera.updateMatrixWorld();return;}
   const overviewDistance=Math.max(145,(bounds.x*Math.cos(.48)+bounds.z*Math.sin(.48)+12)/(Math.tan(48*Math.PI/360)*camera.aspect)*1.12);
-  const distance=view.overview?overviewDistance:view.distance*(innerWidth<700?1.18:1);camera.far=view.overview?1000:350;scene.fog.near=view.overview?distance+100:160;scene.fog.far=view.overview?distance+300:290;camera.updateProjectionMatrix();look.set(view.follow?p.x:0,view.follow?p.y+1.1:0,view.follow?p.z:0);desired.set(look.x+Math.sin(view.angle)*Math.cos(view.pitch)*distance,look.y+Math.sin(view.pitch)*distance,look.z+Math.cos(view.angle)*Math.cos(view.pitch)*distance);
+  const distance=view.overview?overviewDistance:view.distance*(innerWidth<700?1.18:1);camera.far=view.overview?1000:350;scene.fog.near=view.overview?distance+100:160;scene.fog.far=view.overview?distance+300:290;camera.updateProjectionMatrix();look.set(view.follow?p.x:0,view.follow?1.1:0,view.follow?p.z:0);desired.set(look.x+Math.sin(view.angle)*Math.cos(view.pitch)*distance,look.y+Math.sin(view.pitch)*distance,look.z+Math.cos(view.angle)*Math.cos(view.pitch)*distance);
   // A fixed elevated orbit stays above the town. Never auto-change pitch or
   // distance as the view sweeps across buildings: that caused the angle jumps.
   camera.position.copy(desired);camera.lookAt(look);camera.updateMatrixWorld();

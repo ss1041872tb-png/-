@@ -1,8 +1,8 @@
-"""Real browser regressions for stable steering, mobile input and visible pipe paths."""
+"""Real browser regressions for fixed-view movement, mobile input and visible pipe paths."""
 import os,json,math
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-BASE=os.getenv('EXPLORER_URL','http://127.0.0.1:8015')
+BASE=os.getenv('EXPLORER_URL','http://127.0.0.1:8000')
 SINGLE=os.getenv('EXPLORER_SINGLE')=='1'
 passed=[]
 def check(name,value=True):
@@ -13,7 +13,11 @@ def start(page):
   page.evaluate("()=>{window.URLSearchParams=class extends URLSearchParams{has(n){return n==='test'||super.has(n)}}}")
   page.set_content((Path(__file__).resolve().parents[1]/'dist/zhonghe-food-explorer-preview.html').read_text(),wait_until='load')
  else:page.goto(BASE+'/?test',wait_until='networkidle')
- page.wait_for_function('document.body.dataset.ready==="true"');page.locator('#start-adventure').click()
+ try:page.wait_for_function('document.body.dataset.ready==="true"')
+ except Exception:
+  print('STARTUP STATE',page.locator('#error-message').text_content(),flush=True)
+  raise
+ page.locator('#start-adventure').click()
 def place(page,angle=0):
  page.evaluate('(a)=>{const e=__explorer;e.controls.clear();e.world.player.position.set(0,0,36);e.controls.view.angle=a;e.world.updateCamera(e.controls.view,true);window.start=e.world.player.position.clone();window.yaw=a}',angle)
 def open_pipe(page,touch=False):
@@ -35,34 +39,36 @@ with sync_playwright() as p:
  page.on('pageerror',lambda e:errors.append(str(e)))
  if SINGLE:page.on('request',lambda r:external.append(r.url) if r.url.startswith(('http:','https:')) else None)
  start(page);page.evaluate('__explorer.ui.preferences.reducedMotion=true')
- for angle in [0,math.pi/2,math.pi-.01,-math.pi+.01]:
-  for key in ['w','s']:
-   place(page,angle);page.locator('#world canvas').focus();page.keyboard.down(key);page.wait_for_function('__explorer.world.player.position.distanceTo(start)>.7');page.keyboard.up(key)
-   check(f'{key} keeps heading at {angle:.2f}',page.evaluate('(forward)=>{const e=__explorer,p=e.world.player.position,dx=p.x-start.x,dz=p.z-start.z;return Math.abs(e.controls.view.angle-yaw)<1e-8&&(-dx*Math.sin(yaw)-dz*Math.cos(yaw))*(forward?1:-1)>.6}',key=='w'))
- # Track actual rendered yaw/pitch/distance while switching left and right.
+ for angle in [0,.75,math.pi/2,math.pi-.01]:
+  directions=[('w',0,-1),('s',0,1),('a',-1,0),('d',1,0)] if angle<1 else [('ArrowUp',0,-1),('ArrowDown',0,1),('ArrowLeft',-1,0),('ArrowRight',1,0)]
+  for key,x,z in directions:
+   place(page,angle);page.locator('#world canvas').focus();page.keyboard.down(key);page.wait_for_function('__explorer.world.player.position.distanceTo(start)>.55');page.keyboard.up(key)
+   check(f'{key} walks in screen direction and turns only the avatar at {angle:.2f}',page.evaluate('(v)=>{const e=__explorer,p=e.world.player.position,dx=p.x-start.x,dz=p.z-start.z,wx=v.x*Math.cos(yaw)+v.z*Math.sin(yaw),wz=-v.x*Math.sin(yaw)+v.z*Math.cos(yaw),target=Math.atan2(wx,wz);return e.controls.view.angle===yaw&&dx*wx+dz*wz>.5&&Math.abs(dx*wz-dz*wx)<.001&&Math.abs(Math.atan2(Math.sin(e.world.player.rotation.y-target),Math.cos(e.world.player.rotation.y-target)))<.001}',{'x':x,'z':z}))
+ # Turning the avatar must leave the camera's entire orientation unchanged.
  for reduced in [False,True]:
-  place(page,math.pi-.01)
-  page.evaluate('(v)=>{__explorer.ui.preferences.reducedMotion=v;window.samples=[];window.record=true;function tick(){const e=__explorer,w=e.world,v=e.controls.view,dx=w.camera.position.x-w.player.position.x,dy=w.camera.position.y-w.player.position.y-1.1,dz=w.camera.position.z-w.player.position.z;samples.push({a:v.angle,p:Math.atan2(dy,Math.hypot(dx,dz)),d:Math.hypot(dx,dy,dz)});if(record)requestAnimationFrame(tick)}requestAnimationFrame(tick)}',reduced)
-  for key in ['a','d','a','d']:
-   before=page.evaluate('__explorer.controls.view.angle');page.keyboard.down(key)
-   page.wait_for_function('(v)=>(__explorer.controls.view.angle-v.a)*v.sign>.12',arg={'a':before,'sign':1 if key=='a' else -1});page.keyboard.up(key)
+  place(page,0)
+  page.evaluate('(v)=>{__explorer.ui.preferences.reducedMotion=v;window.samples=[];window.record=true;function tick(){const e=__explorer,w=e.world;samples.push({a:e.controls.view.angle,y:w.camera.position.y,q:w.camera.quaternion.toArray()});if(record)requestAnimationFrame(tick)}requestAnimationFrame(tick)}',reduced)
+  for key in ['a','d','ArrowLeft','ArrowRight']:
+   page.evaluate('window.previousPosition=__explorer.world.player.position.clone()');page.keyboard.down(key);page.wait_for_function('__explorer.world.player.position.distanceTo(previousPosition)>.55');page.keyboard.up(key)
   page.evaluate('window.record=false')
-  check(f'Left/right has no angle jumps (reduced motion {reduced})',page.evaluate('samples.every((s,i)=>!i||Math.abs(s.a-samples[i-1].a)<=.059)'))
-  check(f'Turning stays in place and keeps pitch/distance ({reduced})',page.evaluate('const e=__explorer; e.world.player.position.distanceTo(start)<.01&&samples.every(s=>Math.abs(s.p-.8)<1e-6&&Math.abs(s.d-36)<1e-6)'))
-  page.evaluate('window.stopped=__explorer.controls.view.angle');page.wait_for_timeout(1100)
-  check(f'No delayed automatic turn after release ({reduced})',page.evaluate('__explorer.controls.view.angle===stopped'))
+  check(f'No camera rotation, pitch change or vertical bob while walking ({reduced})',page.evaluate('samples.length>3&&samples.every(s=>s.a===0&&Math.abs(s.y-samples[0].y)<1e-9&&s.q.every((v,i)=>Math.abs(v-samples[0].q[i])<1e-9))'))
+  page.evaluate('window.stopped=__explorer.controls.view.angle;window.stopPosition=__explorer.world.player.position.clone()');page.wait_for_timeout(500)
+  check(f'Releasing input stops movement without automatic recentering ({reduced})',page.evaluate('__explorer.controls.view.angle===stopped&&__explorer.world.player.position.distanceTo(stopPosition)<.001'))
+ # Diagonal walking keeps the same speed as walking straight, across actual frames.
+ place(page);page.evaluate('const e=__explorer,original=e.controls.movement;window.walkTime=0;e.controls.movement=(x,z,dt)=>{if(e.controls.keys.size)walkTime+=dt;return original(x,z,dt)}');page.keyboard.down('w');page.keyboard.down('d');page.evaluate('window.walkTime=0;window.start=__explorer.world.player.position.clone()');page.wait_for_function('walkTime>.2');diagonal=page.evaluate('const p=__explorer.world.player.position;Math.abs(Math.hypot(p.x-start.x,p.z-start.z)/walkTime-4.5)<.001&&p.x>start.x&&p.z<start.z&&__explorer.controls.view.angle===0');page.keyboard.up('w');page.keyboard.up('d')
+ check('Diagonal speed stays at 4.5 units per second',diagonal)
  # Sweep all shop approaches through a full circle; previous building avoidance jumped here.
- check('All ten shop approaches retain fixed camera geometry',page.evaluate('()=>{const e=__explorer,w=e.world,v=e.controls.view;for(const b of w.buildings){w.player.position.set(b.approach.x,0,b.approach.z);for(let n=0;n<36;n++){v.angle=n*Math.PI/18;w.updateCamera(v,true);const dx=w.camera.position.x-w.player.position.x,dy=w.camera.position.y-w.player.position.y-1.1,dz=w.camera.position.z-w.player.position.z;if(Math.abs(Math.hypot(dx,dy,dz)-36)>1e-6||Math.abs(Math.atan2(dy,Math.hypot(dx,dz))-.8)>1e-6)return false;}}return true}'))
- place(page);page.mouse.move(700,600);page.mouse.down();page.mouse.move(800,620,steps=5);page.mouse.up()
- check('Mouse look turns player and camera together',page.evaluate('const e=__explorer;Math.abs(e.controls.view.angle)> .1&&Math.abs(e.world.player.rotation.y-e.controls.view.angle-Math.PI)<1e-6'))
+ check('All ten shop approaches retain fixed camera geometry',page.evaluate('()=>{const e=__explorer,w=e.world,v=e.controls.view;for(const b of w.buildings){w.player.position.set(b.approach.x,0,b.approach.z);for(let n=0;n<36;n++){v.angle=n*Math.PI/18;w.updateCamera(v,true);const dx=w.camera.position.x-w.player.position.x,dy=w.camera.position.y-1.1,dz=w.camera.position.z-w.player.position.z;if(Math.abs(Math.hypot(dx,dy,dz)-36)>1e-6||Math.abs(Math.atan2(dy,Math.hypot(dx,dz))-.8)>1e-6)return false;}}return true}'))
+ place(page);page.evaluate('window.face=__explorer.world.player.rotation.y');page.mouse.move(700,600);page.mouse.down();page.mouse.move(800,620,steps=5);page.mouse.up()
+ check('Only explicit mouse drag rotates the camera, keeping avatar facing',page.evaluate('const e=__explorer;Math.abs(e.controls.view.angle)> .1&&e.world.player.rotation.y===face'));page.evaluate('window.manualYaw=__explorer.controls.view.angle')
  page.mouse.wheel(0,-100);check('Mouse wheel still zooms',page.evaluate('__explorer.controls.view.zoom>1'))
- page.locator('#center-camera').click();check('Reset restores distant view',page.evaluate('__explorer.controls.view.zoom===1&&__explorer.controls.view.distance===36&&__explorer.controls.view.pitch===.8'))
+ page.locator('#center-camera').click();check('Reset distance does not rotate the camera',page.evaluate('__explorer.controls.view.zoom===1&&__explorer.controls.view.distance===36&&__explorer.controls.view.pitch===.8&&__explorer.controls.view.angle===manualYaw'))
  # First-person standing and steering use the same heading, without rendering our own head.
  page.evaluate('const w=__explorer.world,b=w.buildings[0];w.player.position.set(b.x,0,b.z)');page.locator('#camera-mode').click();page.wait_for_function('__explorer.controls.view.firstPerson')
  check('First person hides avatar and relocates unsafe positions',page.evaluate('const w=__explorer.world;!w.player.visible&&w.canStand(w.player.position.x,w.player.position.z,.28)'))
  check('Feet and eyes stay on the actual ground',page.evaluate('const w=__explorer.world,p=w.player.position,h=w.groundHeight(p.x,p.z);Math.abs(p.y+.105-h)<1e-6&&Math.abs(w.camera.position.y-h-1.85)<1e-6'))
- place(page);page.keyboard.down('a');page.wait_for_function('__explorer.controls.view.angle>.12');page.keyboard.up('a')
- check('First-person left turn also keeps position',page.evaluate('__explorer.world.player.position.distanceTo(start)<.01'))
+ place(page);page.keyboard.down('a');page.wait_for_function('__explorer.world.player.position.x<-.55');page.keyboard.up('a')
+ check('First-person left input strafes without rotating the view',page.evaluate('__explorer.controls.view.angle===0&&Math.abs(__explorer.world.player.position.z-36)<.001'))
  page.evaluate('const e=__explorer,b=e.world.buildings[1];e.world.player.position.set(b.x+5.2,0,b.z);e.controls.view.angle=Math.PI/2');page.keyboard.down('w');page.wait_for_timeout(500);page.keyboard.up('w')
  check('First-person wall protection remains enabled',page.evaluate('const w=__explorer.world;w.canStand(w.player.position.x,w.player.position.z,.28)'))
  page.locator('#camera-mode').click();page.wait_for_function('__explorer.world.player.visible')
@@ -88,16 +94,17 @@ with sync_playwright() as p:
  if SINGLE:
   check('Single-file preview makes zero external requests',not external)
  else:
+  page.close() # Release the desktop WebGL context before the phone acceptance.
   m=b.new_page(viewport={'width':390,'height':844},has_touch=True,is_mobile=True);m.on('pageerror',lambda e:errors.append(str(e)));start(m);place(m);m.evaluate('__explorer.ui.preferences.reducedMotion=true')
   r=m.locator('#joystick').bounding_box();cx=r['x']+r['width']/2;cy=r['y']+r['height']/2;cdp=m.context.new_cdp_session(m)
   def event(kind,points):
    cdp.send('Input.dispatchTouchEvent',{'type':kind,'touchPoints':[{'id':i,'x':x,'y':y} for i,x,y in points]});m.wait_for_timeout(40)
-  event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx+38,cy)]);m.wait_for_function('__explorer.controls.view.angle<-.15');event('touchEnd',[])
-  check('Phone horizontal stick turns in place',m.evaluate('__explorer.world.player.position.distanceTo(start)<.01&&__explorer.controls.view.angle>-.8'))
-  m.evaluate('window.yaw=__explorer.controls.view.angle');event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx,cy+38)]);m.wait_for_function('__explorer.world.player.position.distanceTo(start)>.5');event('touchEnd',[])
+  event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx+38,cy)]);m.wait_for_function('__explorer.world.player.position.x>start.x+.55');event('touchEnd',[])
+  check('Phone horizontal stick walks right with fixed camera and avatar facing right',m.evaluate('const e=__explorer;e.controls.view.angle===0&&Math.abs(e.world.player.position.z-36)<.001&&Math.abs(Math.sin(e.world.player.rotation.y-Math.PI/2))<.001'))
+  m.evaluate('window.yaw=__explorer.controls.view.angle;window.start=__explorer.world.player.position.clone()');event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx,cy+38)]);m.wait_for_function('__explorer.world.player.position.z>start.z+.5');event('touchEnd',[])
   check('Phone backward movement does not flip the camera',m.evaluate('__explorer.controls.view.angle===yaw'))
-  place(m);event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx+25,cy-25)]);m.wait_for_function('__explorer.world.player.position.distanceTo(start)>.4&&__explorer.controls.view.angle<-.1')
-  check('Phone diagonal stick walks and steers simultaneously',m.evaluate('__explorer.controls.stick.x>.3&&__explorer.controls.stick.z<-.3'))
+  place(m);event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx+25,cy-25)]);m.wait_for_function('__explorer.world.player.position.x>start.x+.3&&__explorer.world.player.position.z<start.z-.3')
+  check('Phone diagonal stick moves diagonally without camera rotation',m.evaluate('__explorer.controls.stick.x>.3&&__explorer.controls.stick.z<-.3&&__explorer.controls.view.angle===0'))
   event('touchEnd',[]);place(m);event('touchStart',[(1,cx,cy)]);event('touchMove',[(1,cx,cy-38)]);m.wait_for_function('__explorer.world.player.position.distanceTo(start)>.3')
   event('touchStart',[(1,cx,cy-38),(2,230,400)]);event('touchMove',[(1,cx,cy-38),(2,290,430)]);m.wait_for_function('__explorer.controls.view.angle<-.1&&__explorer.controls.stick.z<-.5')
   check('Phone right-hand look works while left hand walks',m.evaluate('__explorer.controls.stick.z<-.5'))
