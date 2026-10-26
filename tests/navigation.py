@@ -1,4 +1,4 @@
-"""Browser acceptance: all store links, walkable arrows, overview and fixed-view controls."""
+"""Browser acceptance: all store links, walkable arrows, overview and synchronized steering without ground arrows."""
 import os,json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -24,13 +24,13 @@ with sync_playwright() as p:
  start(page);page.evaluate('window.origin=__explorer.world.player.position.clone();window.heading=__explorer.world.player.rotation.y')
  for id in range(1,11):
   choose(page,id)
-  check(f'Store {id}: walkable route and exclusive LED border',good_route(page) and page.evaluate('(id)=>__explorer.world.buildings.every(b=>b.led.visible===(b.shop.id===id))',id))
+  check(f'Store {id}: minimap route and exclusive LED border',good_route(page) and page.evaluate('(id)=>__explorer.world.buildings.every(b=>b.led.visible===(b.shop.id===id))',id))
   check(f'Store {id}: full town overview keeps player location and heading',page.evaluate('const e=__explorer,w=e.world;Math.hypot(w.player.position.x-origin.x,w.player.position.z-origin.z)<1e-6&&!e.controls.view.follow&&!e.controls.view.firstPerson&&Math.abs(w.player.rotation.y-heading)<1e-6&&w.buildings.every(b=>{const p=b.frame.getWorldPosition(w.player.position.clone()).project(w.camera);return Math.abs(p.x)<1&&Math.abs(p.y)<1&&p.z<1})'))
   if page.locator('#map-content').is_hidden():page.locator('#map-toggle').click()
   page.locator('#destination-info').click();page.wait_for_selector('#drawer:not([hidden])')
   check(f'Store {id}: real destination URLs and preview without progress',page.evaluate('(id)=>{const s=__explorer.shops[id-1],dir=new URL(document.getElementById("navigation").href),map=new URL(document.getElementById("map-listing").href),web=new URL(document.getElementById("web-info").href),reviews=new URL(document.getElementById("food-reviews").href);return document.getElementById("shop-name").textContent===s.name&&document.getElementById("address").textContent===s.address&&dir.searchParams.get("destination")===s.name+" "+s.address&&dir.searchParams.get("travelmode")==="walking"&&map.searchParams.get("query")===s.name+" "+s.address&&web.searchParams.get("q").includes(s.address)&&reviews.searchParams.get("q").includes(s.name)&&["navigation","map-listing","web-info","food-reviews"].every(id=>{const a=document.getElementById(id);return a.target==="_blank"&&a.rel.includes("noopener")})&&__explorer.campaign.stages.every(n=>n===0)}',id))
   page.locator('#close').click()
- check('Ground arrows are batched and follow the planned route',page.evaluate('const g=__explorer.world.guidance;g.group.children.length===2&&g.arrows.isInstancedMesh&&g.arrows.count>0&&g.arrows.count<=160&&g.path.length>1'))
+ check('Ground guidance geometry and APIs are removed',page.evaluate('()=>{const w=__explorer.world;let arrows=0;w.scene.traverse(o=>{if(o.geometry?.type==="ShapeGeometry")arrows++});return arrows===0&&w.guidance===undefined&&w.setGuidePath===undefined&&w.destinationMarker===undefined}'))
  # Walking input returns to the previous view, while keeping the selected shop.
  page.keyboard.down('ArrowLeft');page.wait_for_function('__explorer.controls.view.follow&&!__explorer.controls.view.overview');page.keyboard.up('ArrowLeft')
  check('Direction key restores follow view without losing destination',page.evaluate('const e=__explorer;e.controls.view.distance===36&&e.navigation.target.shop.id===10&&e.world.destinationId===10&&document.getElementById("overview-hint").hidden'))
@@ -40,14 +40,14 @@ with sync_playwright() as p:
  page.evaluate('const e=__explorer,original=e.controls.movement;e.controls.movement=(x,z,dt)=>{if(e.controls.keys.has("w"))window.walkTime+=dt;if(e.controls.keys.has("d"))window.turnTime+=dt;return original(x,z,dt)};window.walkTime=0;window.turnTime=0;e.controls.clear();e.controls.view.angle=0;e.world.player.position.set(0,0,36);window.start=e.world.player.position.clone()')
  page.locator('#world canvas').focus();page.keyboard.down('w');page.wait_for_function('walkTime>.2');page.keyboard.up('w')
  check('Third-person walking is now 4.5 units per second',page.evaluate('const p=__explorer.world.player.position;Math.abs(Math.hypot(p.x-start.x,p.z-start.z)/walkTime-4.5)<.001'))
- page.evaluate('window.startD=__explorer.world.player.position.clone()');page.keyboard.down('d');page.wait_for_function('turnTime>.15');page.keyboard.up('d');check('D walks right at the retained slow speed without rotating the view',page.evaluate('Math.abs((__explorer.world.player.position.x-startD.x)/turnTime-4.5)<.001&&__explorer.controls.view.angle===0'))
+ page.evaluate('window.startD=__explorer.world.player.position.clone()');page.keyboard.down('d');page.wait_for_function('turnTime>.15');page.keyboard.up('d');check('D turns character and camera together at 1.05 radians per second',page.evaluate('const e=__explorer;Math.abs(e.controls.view.angle/turnTime+1.05)<.001&&Math.abs(e.world.player.rotation.y-e.controls.view.angle-Math.PI)<.001&&e.world.player.position.distanceTo(startD)<.001'))
  page.locator('#camera-mode').click();page.evaluate('window.walkTime=0;window.start=__explorer.world.player.position.clone()');page.locator('#world canvas').focus();page.keyboard.down('w');page.wait_for_function('walkTime>.2');page.keyboard.up('w')
  check('First-person walking is now 3.6 units per second',page.evaluate('const p=__explorer.world.player.position;Math.abs(Math.hypot(p.x-start.x,p.z-start.z)/walkTime-3.6)<.001'))
  choose(page,4);page.keyboard.down('ArrowUp');page.wait_for_function('__explorer.controls.view.firstPerson&&__explorer.controls.view.follow');page.keyboard.up('ArrowUp');check('Overview restores the chosen first-person mode',page.evaluate('!__explorer.world.player.visible&&__explorer.world.destinationId===4'))
  choose(page,5);page.locator('#camera-mode').click();check('First-person button matches its label during overview',page.evaluate('__explorer.controls.view.firstPerson&&__explorer.controls.view.follow&&!__explorer.controls.view.overview'))
- page.locator('#camera-mode').click();choose(page,9);page.evaluate('__explorer.ui.preferences.reducedMotion=false');page.wait_for_timeout(100);page.evaluate('window.glow=__explorer.world.guidance.material.opacity');page.wait_for_function('Math.abs(__explorer.world.guidance.material.opacity-glow)>.02')
- check('Ground arrow glow pulses gently',page.evaluate('Math.abs(__explorer.world.guidance.material.opacity-glow)>.02'))
- page.evaluate('__explorer.ui.preferences.reducedMotion=true');page.wait_for_function('__explorer.world.guidance.material.opacity===1');page.wait_for_timeout(120);check('Reduced motion keeps navigation lights steady',page.evaluate('__explorer.world.guidance.material.opacity===1&&__explorer.world.buildings[8].ledMat.opacity===1'))
+ page.locator('#camera-mode').click();choose(page,9);page.evaluate('__explorer.ui.preferences.reducedMotion=false');page.wait_for_timeout(100);page.evaluate('window.glow=__explorer.world.buildings[8].ledMat.opacity');page.wait_for_function('Math.abs(__explorer.world.buildings[8].ledMat.opacity-glow)>.02')
+ check('Selected sign LED still pulses gently',page.evaluate('Math.abs(__explorer.world.buildings[8].ledMat.opacity-glow)>.02'))
+ page.evaluate('__explorer.ui.preferences.reducedMotion=true');page.wait_for_function('__explorer.world.buildings[8].ledMat.opacity===1');page.wait_for_timeout(120);check('Reduced motion keeps navigation lights steady',page.evaluate('__explorer.world.buildings[8].ledMat.opacity===1'))
  # An uncollected store is accessible directly from the collection, too.
  page.locator('#journal-toggle').click();page.locator('[data-shop-id="7"]').click();page.wait_for_selector('#drawer:not([hidden])');check('Uncollected store information is accessible from the collection',page.locator('#shop-name').inner_text()=='橋壽司' and '永和區' in page.locator('#address').inner_text())
  page.locator('#shop-guide').click();page.wait_for_function('__explorer.controls.view.overview&&__explorer.world.destinationId===7');check('Information card can set the in-game destination',page.locator('#drawer').is_hidden())

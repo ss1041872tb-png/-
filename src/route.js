@@ -1,4 +1,4 @@
-import { bounds } from './layout.js?v=6.6.0';
+import { bounds } from './layout.js?v=6.7.0';
 
 // Static walking grid: traffic never forces a constantly changing route.
 export function createRoutePlanner(world) {
