@@ -1,5 +1,5 @@
-import { bounds, road, branches } from './layout.js?v=6.5.0';
-import { createRoutePlanner } from './route.js?v=6.5.0';
+import { bounds, road, branches } from './layout.js?v=6.6.0';
+import { createRoutePlanner } from './route.js?v=6.6.0';
 export function createNavigation(world,ui,campaign,onInteract,controls){
  const $=id=>document.getElementById(id),root=$('navigator'),content=$('map-content'),toggle=$('map-toggle'),planner=createRoutePlanner(world);
  const mapPosition=(x,z)=>({x:(x+bounds.x)/(bounds.x*2)*280,y:(z+bounds.z)/(bounds.z*2)*240});
