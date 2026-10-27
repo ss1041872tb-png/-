@@ -1,4 +1,4 @@
-"""Browser acceptance: all store links, walkable arrows, overview and synchronized steering without ground arrows."""
+"""Browser acceptance: all store links, minimap routes, overview and synchronized steering without ground arrows."""
 import os,json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -39,10 +39,10 @@ with sync_playwright() as p:
  # Compare traveled distance against the actual frame time accumulated by the controls.
  page.evaluate('const e=__explorer,original=e.controls.movement;e.controls.movement=(x,z,dt)=>{if(e.controls.keys.has("w"))window.walkTime+=dt;if(e.controls.keys.has("d"))window.turnTime+=dt;return original(x,z,dt)};window.walkTime=0;window.turnTime=0;e.controls.clear();e.controls.view.angle=0;e.world.player.position.set(0,0,36);window.start=e.world.player.position.clone()')
  page.locator('#world canvas').focus();page.keyboard.down('w');page.wait_for_function('walkTime>.2');page.keyboard.up('w')
- check('Third-person walking is now 4.5 units per second',page.evaluate('const p=__explorer.world.player.position;Math.abs(Math.hypot(p.x-start.x,p.z-start.z)/walkTime-4.5)<.001'))
- page.evaluate('window.startD=__explorer.world.player.position.clone()');page.keyboard.down('d');page.wait_for_function('turnTime>.15');page.keyboard.up('d');check('D turns character and camera together at 1.05 radians per second',page.evaluate('const e=__explorer;Math.abs(e.controls.view.angle/turnTime+1.05)<.001&&Math.abs(e.world.player.rotation.y-e.controls.view.angle-Math.PI)<.001&&e.world.player.position.distanceTo(startD)<.001'))
+ check('Third-person walking is now 6.5 units per second',page.evaluate('const p=__explorer.world.player.position;Math.abs(Math.hypot(p.x-start.x,p.z-start.z)/walkTime-6.5)<.001'))
+ page.evaluate('window.startD=__explorer.world.player.position.clone()');page.keyboard.down('d');page.wait_for_function('turnTime>.15');page.keyboard.up('d');check('D turns character and camera together at 1.45 radians per second',page.evaluate('const e=__explorer;Math.abs(e.controls.view.angle/turnTime+1.45)<.001&&Math.abs(e.world.player.rotation.y-e.controls.view.angle-Math.PI)<.001&&e.world.player.position.distanceTo(startD)<.001'))
  page.locator('#camera-mode').click();page.evaluate('window.walkTime=0;window.start=__explorer.world.player.position.clone()');page.locator('#world canvas').focus();page.keyboard.down('w');page.wait_for_function('walkTime>.2');page.keyboard.up('w')
- check('First-person walking is now 3.6 units per second',page.evaluate('const p=__explorer.world.player.position;Math.abs(Math.hypot(p.x-start.x,p.z-start.z)/walkTime-3.6)<.001'))
+ check('First-person walking is now 5 units per second',page.evaluate('const p=__explorer.world.player.position;Math.abs(Math.hypot(p.x-start.x,p.z-start.z)/walkTime-5)<.001'))
  choose(page,4);page.keyboard.down('ArrowUp');page.wait_for_function('__explorer.controls.view.firstPerson&&__explorer.controls.view.follow');page.keyboard.up('ArrowUp');check('Overview restores the chosen first-person mode',page.evaluate('!__explorer.world.player.visible&&__explorer.world.destinationId===4'))
  choose(page,5);page.locator('#camera-mode').click();check('First-person button matches its label during overview',page.evaluate('__explorer.controls.view.firstPerson&&__explorer.controls.view.follow&&!__explorer.controls.view.overview'))
  page.locator('#camera-mode').click();choose(page,9);page.evaluate('__explorer.ui.preferences.reducedMotion=false');page.wait_for_timeout(100);page.evaluate('window.glow=__explorer.world.buildings[8].ledMat.opacity');page.wait_for_function('Math.abs(__explorer.world.buildings[8].ledMat.opacity-glow)>.02')

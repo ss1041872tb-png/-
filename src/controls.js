@@ -5,7 +5,7 @@ export function createControls(world,callbacks){
  // new heading from movement, so tapping left/right cannot trigger a 90/180° chase.
  function movement(x,z,dt){
   x=Math.max(-1,Math.min(1,x));z=Math.max(-1,Math.min(1,z));
-  view.angle-=x*1.05*dt;
+  view.angle-=x*1.45*dt;
   if(view.follow||view.firstPerson)world.player.rotation.y=view.angle+Math.PI;
   return{x:z*Math.sin(view.angle),z:z*Math.cos(view.angle)};
  }

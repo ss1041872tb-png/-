@@ -18,7 +18,8 @@ for name, path, imports in [
     ('food-models','src/food-models.js',{'../vendor/three.module.js':'three'}),('food-view','src/food-view.js',{'./food-models.js':'food-models'}),('celebration','src/celebration.js',{}),
     ('ui','src/ui.js',{'./food-view.js':'food-view'}),('controls','src/controls.js',{}),
     ('reward','src/reward.js',{'./food-view.js':'food-view'}),
-    ('newgames','src/newgames.js',{}),
+    ('slide-puzzle','src/slide-puzzle.js',{}),
+    ('newgames','src/newgames.js',{'./slide-puzzle.js':'slide-puzzle'}),
     ('arcade','src/arcade.js',{'./campaign.js':'campaign','./food-view.js':'food-view','./newgames.js':'newgames'}),
     ('route','src/route.js',{'./layout.js':'layout'}),
     ('navigation','src/navigation.js',{'./layout.js':'layout','./route.js':'route'}),
@@ -38,7 +39,7 @@ bootstrap = '''
   for (const module of modules) {
     let source = new TextDecoder().decode(Uint8Array.from(atob(module.source), c => c.charCodeAt(0)));
     for (const [specifier, dependency] of Object.entries(module.imports)) {
-      source = source.replaceAll("'" + specifier + "?v=6.7.0'", JSON.stringify(urls[dependency])).replaceAll("'" + specifier + "'", JSON.stringify(urls[dependency]));
+      source = source.replaceAll("'" + specifier + "?v=6.8.0'", JSON.stringify(urls[dependency])).replaceAll("'" + specifier + "'", JSON.stringify(urls[dependency]));
     }
     urls[module.name] = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
   }
@@ -51,8 +52,8 @@ bootstrap = '''
 });
 '''.replace('MODULES', json.dumps(modules, separators=(',', ':')))
 html = (root / 'index.html').read_text()
-html = html.replace('<link rel="stylesheet" href="styles.css?v=6.7.0">', '<style>\n' + (root / 'styles.css').read_text() + '</style>')
-html = html.replace('<script type="module" src="src/main.js?v=6.7.0"></script>', '<script>\n' + bootstrap + '</script>')
+html = html.replace('<link rel="stylesheet" href="styles.css?v=6.8.0">', '<style>\n' + (root / 'styles.css').read_text() + '</style>')
+html = html.replace('<script type="module" src="src/main.js?v=6.8.0"></script>', '<script>\n' + bootstrap + '</script>')
 license_text = (root / 'vendor/THREE-LICENSE.txt').read_text()
 html = '<!-- Single-file local preview. Three.js 0.160.1: ' + license_text.replace('--', '—') + '-->\n' + html
 output = root / 'dist/zhonghe-food-explorer-preview.html'
